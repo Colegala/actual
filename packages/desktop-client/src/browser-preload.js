@@ -6,6 +6,7 @@ import { registerSW } from 'virtual:pwa-register';
 import packageJson from '../package.json';
 
 import SharedBrowserServerWorker from './shared-browser-server.ts?sharedworker';
+import { saveFileInNativeApp } from './util/saveFileInNativeApp';
 import { computeClientVersion } from './util/versions';
 
 const backendWorkerUrl = new URL('./browser-server.js', import.meta.url);
@@ -223,7 +224,12 @@ global.Actual = {
     });
   },
 
-  saveFile: (contents, defaultFilename) => {
+  saveFile: async (contents, defaultFilename, dialogTitle) => {
+    if (Platform.isNativeMobileApp) {
+      await saveFileInNativeApp(contents, defaultFilename, dialogTitle);
+      return;
+    }
+
     const temp = document.createElement('a');
     temp.style = 'display: none';
     temp.download = defaultFilename;
