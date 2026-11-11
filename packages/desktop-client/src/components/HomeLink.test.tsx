@@ -77,6 +77,23 @@ describe('Home button', () => {
     expectHomeLink();
   });
 
+  it('renders in the mobile header beside non-back left content (budget menu)', () => {
+    render(
+      <MemoryRouter>
+        <MobilePageHeader
+          title="Budget"
+          showHomeLink
+          leftContent={<button type="button">Budget page menu</button>}
+        />
+      </MemoryRouter>,
+      { wrapper: TestProviders },
+    );
+    expect(
+      screen.getByRole('button', { name: 'Budget page menu' }),
+    ).toBeTruthy();
+    expectHomeLink();
+  });
+
   it('is hidden in the mobile header when a back button is present', () => {
     render(
       <MemoryRouter>

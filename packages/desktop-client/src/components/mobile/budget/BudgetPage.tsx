@@ -529,6 +529,7 @@ export function BudgetPage() {
       padding={0}
       header={
         <MobilePageHeader
+          showHomeLink
           title={
             <MonthSelector
               month={startMonth}

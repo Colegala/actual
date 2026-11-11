@@ -46,6 +46,12 @@ type MobilePageHeaderProps = {
   style?: CSSProperties;
   leftContent?: ReactNode;
   rightContent?: ReactNode;
+  /**
+   * Home fork: show the Home link next to `leftContent`. Defaults to hidden
+   * when `leftContent` is set (it is normally a back button); pass true when
+   * `leftContent` is not a back button (e.g. the budget page menu button).
+   */
+  showHomeLink?: boolean;
 };
 
 export function MobilePageHeader({
@@ -53,6 +59,7 @@ export function MobilePageHeader({
   style,
   leftContent,
   rightContent,
+  showHomeLink = !leftContent,
 }: MobilePageHeaderProps) {
   return (
     <View
@@ -82,9 +89,15 @@ export function MobilePageHeader({
         }}
       >
         {leftContent}
-        {/* Home fork: skip the home icon when a back button already uses the slot. */}
-        {!leftContent && (
-          <View style={{ justifyContent: 'center', padding: '0 10px' }}>
+        {/* Home fork: skip the home icon when a back button uses the slot. */}
+        {showHomeLink && (
+          <View
+            style={{
+              justifyContent: 'center',
+              // compact beside other left content so it fits the 25% slot
+              padding: leftContent ? '0 6px 0 0' : '0 10px',
+            }}
+          >
             <HomeLink />
           </View>
         )}
