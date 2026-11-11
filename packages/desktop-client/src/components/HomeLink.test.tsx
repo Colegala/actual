@@ -94,6 +94,46 @@ describe('Home button', () => {
     expectHomeLink();
   });
 
+  it('has a tap target of at least 44px in the mobile header', () => {
+    render(
+      <MemoryRouter>
+        <MobilePageHeader title="Budget" />
+      </MemoryRouter>,
+      { wrapper: TestProviders },
+    );
+    const link = screen.getByRole('link', { name: 'Home' });
+    expect(link.style.minHeight).toBe('44px');
+    expect(link.style.minWidth).toBe('44px');
+  });
+
+  it('keeps a tall tap target beside the budget menu button without overflowing', () => {
+    render(
+      <MemoryRouter>
+        <MobilePageHeader
+          title="Budget"
+          showHomeLink
+          leftContent={<button type="button">Budget page menu</button>}
+        />
+      </MemoryRouter>,
+      { wrapper: TestProviders },
+    );
+    const link = screen.getByRole('link', { name: 'Home' });
+    expect(link.style.minHeight).toBe('44px');
+    expect(link.style.minWidth).toContain('44px');
+  });
+
+  it('leaves the desktop sidebar link unstyled', () => {
+    render(
+      <MemoryRouter>
+        <SidebarFooter />
+      </MemoryRouter>,
+      { wrapper: TestProviders },
+    );
+    const link = screen.getByRole('link', { name: 'Home' });
+    expect(link.style.minHeight).toBe('');
+    expect(link.style.minWidth).toBe('');
+  });
+
   it('is hidden in the mobile header when a back button is present', () => {
     render(
       <MemoryRouter>

@@ -128,6 +128,8 @@ describe('Login (home fork: header login)', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: 'Retry' }));
     await waitFor(() => expect(send).toHaveBeenCalledTimes(1));
+    await new Promise(resolve => setTimeout(resolve, 50));
+    expect(send).toHaveBeenCalledTimes(1);
     expect(screen.getByTestId('history').textContent).toBe('REPLACE /login');
   });
 

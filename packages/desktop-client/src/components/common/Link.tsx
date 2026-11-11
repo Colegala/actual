@@ -51,6 +51,7 @@ type ExternalLinkProps = {
   // Home fork: open in the same tab instead of a new one.
   sameTab?: boolean;
   'aria-label'?: string;
+  style?: CSSProperties;
 };
 
 const ExternalLink = ({
@@ -61,6 +62,7 @@ const ExternalLink = ({
   className,
   sameTab = false,
   'aria-label': ariaLabel,
+  style,
 }: ExternalLinkProps) => {
   return (
     // we can't use <ExternalLink /> here for obvious reasons
@@ -69,7 +71,7 @@ const ExternalLink = ({
       target={sameTab ? undefined : '_blank'}
       rel={sameTab ? undefined : 'noopener noreferrer'}
       aria-label={ariaLabel}
-      style={{ color: externalLinkColors[linkColor] }}
+      style={{ color: externalLinkColors[linkColor], ...style }}
       className={className}
       onClick={onClick}
     >

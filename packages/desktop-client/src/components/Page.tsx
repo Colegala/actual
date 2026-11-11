@@ -54,6 +54,26 @@ type MobilePageHeaderProps = {
   showHomeLink?: boolean;
 };
 
+export const HOME_LINK_MIN_SIZE = 44;
+
+// Home fork: tap target for the mobile Home icon (icon stays 20px, centered).
+// Beside other left content (budget menu button) the width is capped so the
+// target ends before the month selector at narrow screens (about 50vw - 143px:
+// 17px at 320, 37px at 360, full 44px from about 375px up, floor 20px).
+function homeLinkHitArea(besideLeftContent: boolean): CSSProperties {
+  const width = besideLeftContent
+    ? `max(20px, min(${HOME_LINK_MIN_SIZE}px, calc(50vw - 143px)))`
+    : `${HOME_LINK_MIN_SIZE}px`;
+  return {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    boxSizing: 'border-box',
+    minWidth: width,
+    minHeight: HOME_LINK_MIN_SIZE,
+  };
+}
+
 export function MobilePageHeader({
   title,
   style,
@@ -94,11 +114,12 @@ export function MobilePageHeader({
           <View
             style={{
               justifyContent: 'center',
-              // compact beside other left content so it fits the 25% slot
-              padding: leftContent ? '0 6px 0 0' : '0 10px',
+              // Beside other left content, reuse that content's 10px right
+              // margin so the tap target can start at its edge.
+              marginLeft: leftContent ? -10 : 0,
             }}
           >
-            <HomeLink />
+            <HomeLink style={homeLinkHitArea(!!leftContent)} />
           </View>
         )}
       </View>
