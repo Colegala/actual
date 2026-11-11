@@ -15,6 +15,7 @@ import { View } from '@actual-app/components/view';
 
 import { Link } from '#components/common/Link';
 import { FixedSizeList } from '#components/FixedSizeList';
+import { THEME_CATALOG_ENABLED } from '#home-fork';
 import { useGlobalPref } from '#hooks/useGlobalPref';
 import { useThemeCatalog } from '#hooks/useThemeCatalog';
 import {
@@ -207,200 +208,215 @@ export function ThemeInstaller({
         </Button>
       </View>
 
-      {/* Catalog Virtualized List */}
-      <Text style={{ marginBottom: 8, color: themeStyle.pageTextSubdued }}>
-        <Trans>Choose from catalog:</Trans>
-      </Text>
-      {catalogError ? (
-        <Text
-          size="small"
-          style={{
-            color: themeStyle.errorText,
-            marginBottom: spacing.md,
-          }}
-        >
-          <Trans>
-            Failed to load theme catalog. You can still paste custom CSS below.
-          </Trans>
-        </Text>
-      ) : (
-        <View
-          style={{
-            height: CATALOG_MAX_HEIGHT,
-            marginBottom: 16,
-          }}
-        >
-          {catalogLoading ? (
-            <View
+      {/* Home fork: catalog is hidden unless THEME_CATALOG_ENABLED */}
+      {THEME_CATALOG_ENABLED && (
+        <>
+          {/* Catalog Virtualized List */}
+          <Text style={{ marginBottom: 8, color: themeStyle.pageTextSubdued }}>
+            <Trans>Choose from catalog:</Trans>
+          </Text>
+          {catalogError ? (
+            <Text
+              size="small"
               style={{
-                height: '100%',
-                alignItems: 'center',
-                justifyContent: 'center',
+                color: themeStyle.errorText,
+                marginBottom: spacing.md,
               }}
             >
-              <AnimatedLoading
-                style={{
-                  width: 24,
-                  height: 24,
-                  color: themeStyle.pageText,
-                }}
-              />
-            </View>
+              <Trans>
+                Failed to load theme catalog. You can still paste custom CSS
+                below.
+              </Trans>
+            </Text>
           ) : (
-            <AutoSizer
-              renderProp={({ width = 0, height = 0 }) => {
-                if (width === 0 || height === 0) {
-                  return null;
-                }
-
-                const catalogItems = [...(catalog ?? [])]
-                  .filter(catalogTheme => !mode || catalogTheme.mode === mode)
-                  .sort((a, b) => a.name.localeCompare(b.name));
-                const itemWidth = getItemWidth(width);
-                const rows: CatalogTheme[][] = [];
-                for (let i = 0; i < catalogItems.length; i += ITEMS_PER_ROW) {
-                  rows.push(catalogItems.slice(i, i + ITEMS_PER_ROW));
-                }
-
-                return (
-                  <FixedSizeList
-                    width={width}
-                    height={height}
-                    itemCount={rows.length}
-                    itemSize={itemWidth + THEME_ITEM_GAP}
-                    itemKey={index => `row-${index}`}
-                    renderRow={({ index, key, style }) => {
-                      const rowThemes = rows[index];
-                      return (
-                        <div
-                          key={key}
-                          style={{
-                            ...style,
-                            display: 'flex',
-                            gap: THEME_ITEM_GAP,
-                            padding: `0 ${THEME_ITEM_PADDING + SCROLLBAR_WIDTH}px ${THEME_ITEM_GAP}px ${THEME_ITEM_PADDING}px`,
-                          }}
-                        >
-                          {rowThemes.map((theme, themeIndex) => {
-                            const isActive = isCatalogThemeInstalled(theme);
-                            const hasError =
-                              erroringTheme?.name === theme.name &&
-                              erroringTheme?.repo === theme.repo;
-                            const isSelected =
-                              selectedCatalogTheme?.name === theme.name &&
-                              selectedCatalogTheme?.repo === theme.repo;
-
-                            const isLoadingSelected = isLoading && isSelected;
-
-                            return (
-                              <Button
-                                key={`${theme.name}-${index}-${themeIndex}`}
-                                variant="bare"
-                                aria-label={theme.name}
-                                onPress={() => handleCatalogThemeClick(theme)}
-                                style={{
-                                  width: itemWidth,
-                                  height: itemWidth,
-                                  padding: 8,
-                                  overflow: 'hidden',
-                                  borderRadius: 6,
-                                  border: `2px solid ${
-                                    hasError
-                                      ? themeStyle.errorText
-                                      : isActive
-                                        ? themeStyle.buttonPrimaryBackground
-                                        : themeStyle.tableBorder
-                                  }`,
-                                  backgroundColor: hasError
-                                    ? themeStyle.errorBackground
-                                    : isActive
-                                      ? themeStyle.tableRowBackgroundHover
-                                      : 'transparent',
-                                  flexDirection: 'column',
-                                  alignItems: 'center',
-                                  gap: 8,
-                                  flexShrink: 0,
-                                  position: 'relative',
-                                }}
-                              >
-                                <View
-                                  style={{
-                                    position: 'absolute',
-                                    top: 0,
-                                    left: 0,
-                                    right: 0,
-                                    bottom: 0,
-                                    borderRadius: 6,
-                                    backgroundColor:
-                                      themeStyle.overlayBackground,
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    zIndex: 1,
-                                    opacity: isLoadingSelected ? 1 : 0,
-                                    pointerEvents: isLoadingSelected
-                                      ? 'auto'
-                                      : 'none',
-                                    transition: 'opacity 0.2s ease-in-out',
-                                  }}
-                                >
-                                  <AnimatedLoading
-                                    style={{
-                                      width: 24,
-                                      height: 24,
-                                      color: themeStyle.pageText,
-                                    }}
-                                  />
-                                </View>
-                                <ColorPalette colors={theme.colors} />
-                                <TextOneLine
-                                  style={{
-                                    fontSize: 12,
-                                    fontWeight: 500,
-                                    textAlign: 'center',
-                                    width: '100%',
-                                  }}
-                                  title={theme.name}
-                                >
-                                  {theme.name}
-                                </TextOneLine>
-
-                                <SpaceBetween
-                                  direction="horizontal"
-                                  align="center"
-                                  wrap={false}
-                                  gap={4}
-                                  style={{ fontSize: 10 }}
-                                >
-                                  <TextOneLine
-                                    style={{
-                                      color: themeStyle.pageTextSubdued,
-                                    }}
-                                  >
-                                    {t('by')}{' '}
-                                    <Text style={{ fontWeight: 'bold' }}>
-                                      {extractRepoOwner(theme.repo)}
-                                    </Text>
-                                  </TextOneLine>
-                                  <Link
-                                    variant="external"
-                                    to={normalizeGitHubRepo(theme.repo)}
-                                    onClick={e => e.stopPropagation()}
-                                  >
-                                    <Trans>Source</Trans>
-                                  </Link>
-                                </SpaceBetween>
-                              </Button>
-                            );
-                          })}
-                        </div>
-                      );
+            <View
+              style={{
+                height: CATALOG_MAX_HEIGHT,
+                marginBottom: 16,
+              }}
+            >
+              {catalogLoading ? (
+                <View
+                  style={{
+                    height: '100%',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <AnimatedLoading
+                    style={{
+                      width: 24,
+                      height: 24,
+                      color: themeStyle.pageText,
                     }}
                   />
-                );
-              }}
-            />
+                </View>
+              ) : (
+                <AutoSizer
+                  renderProp={({ width = 0, height = 0 }) => {
+                    if (width === 0 || height === 0) {
+                      return null;
+                    }
+
+                    const catalogItems = [...(catalog ?? [])]
+                      .filter(
+                        catalogTheme => !mode || catalogTheme.mode === mode,
+                      )
+                      .sort((a, b) => a.name.localeCompare(b.name));
+                    const itemWidth = getItemWidth(width);
+                    const rows: CatalogTheme[][] = [];
+                    for (
+                      let i = 0;
+                      i < catalogItems.length;
+                      i += ITEMS_PER_ROW
+                    ) {
+                      rows.push(catalogItems.slice(i, i + ITEMS_PER_ROW));
+                    }
+
+                    return (
+                      <FixedSizeList
+                        width={width}
+                        height={height}
+                        itemCount={rows.length}
+                        itemSize={itemWidth + THEME_ITEM_GAP}
+                        itemKey={index => `row-${index}`}
+                        renderRow={({ index, key, style }) => {
+                          const rowThemes = rows[index];
+                          return (
+                            <div
+                              key={key}
+                              style={{
+                                ...style,
+                                display: 'flex',
+                                gap: THEME_ITEM_GAP,
+                                padding: `0 ${THEME_ITEM_PADDING + SCROLLBAR_WIDTH}px ${THEME_ITEM_GAP}px ${THEME_ITEM_PADDING}px`,
+                              }}
+                            >
+                              {rowThemes.map((theme, themeIndex) => {
+                                const isActive = isCatalogThemeInstalled(theme);
+                                const hasError =
+                                  erroringTheme?.name === theme.name &&
+                                  erroringTheme?.repo === theme.repo;
+                                const isSelected =
+                                  selectedCatalogTheme?.name === theme.name &&
+                                  selectedCatalogTheme?.repo === theme.repo;
+
+                                const isLoadingSelected =
+                                  isLoading && isSelected;
+
+                                return (
+                                  <Button
+                                    key={`${theme.name}-${index}-${themeIndex}`}
+                                    variant="bare"
+                                    aria-label={theme.name}
+                                    onPress={() =>
+                                      handleCatalogThemeClick(theme)
+                                    }
+                                    style={{
+                                      width: itemWidth,
+                                      height: itemWidth,
+                                      padding: 8,
+                                      overflow: 'hidden',
+                                      borderRadius: 6,
+                                      border: `2px solid ${
+                                        hasError
+                                          ? themeStyle.errorText
+                                          : isActive
+                                            ? themeStyle.buttonPrimaryBackground
+                                            : themeStyle.tableBorder
+                                      }`,
+                                      backgroundColor: hasError
+                                        ? themeStyle.errorBackground
+                                        : isActive
+                                          ? themeStyle.tableRowBackgroundHover
+                                          : 'transparent',
+                                      flexDirection: 'column',
+                                      alignItems: 'center',
+                                      gap: 8,
+                                      flexShrink: 0,
+                                      position: 'relative',
+                                    }}
+                                  >
+                                    <View
+                                      style={{
+                                        position: 'absolute',
+                                        top: 0,
+                                        left: 0,
+                                        right: 0,
+                                        bottom: 0,
+                                        borderRadius: 6,
+                                        backgroundColor:
+                                          themeStyle.overlayBackground,
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        zIndex: 1,
+                                        opacity: isLoadingSelected ? 1 : 0,
+                                        pointerEvents: isLoadingSelected
+                                          ? 'auto'
+                                          : 'none',
+                                        transition: 'opacity 0.2s ease-in-out',
+                                      }}
+                                    >
+                                      <AnimatedLoading
+                                        style={{
+                                          width: 24,
+                                          height: 24,
+                                          color: themeStyle.pageText,
+                                        }}
+                                      />
+                                    </View>
+                                    <ColorPalette colors={theme.colors} />
+                                    <TextOneLine
+                                      style={{
+                                        fontSize: 12,
+                                        fontWeight: 500,
+                                        textAlign: 'center',
+                                        width: '100%',
+                                      }}
+                                      title={theme.name}
+                                    >
+                                      {theme.name}
+                                    </TextOneLine>
+
+                                    <SpaceBetween
+                                      direction="horizontal"
+                                      align="center"
+                                      wrap={false}
+                                      gap={4}
+                                      style={{ fontSize: 10 }}
+                                    >
+                                      <TextOneLine
+                                        style={{
+                                          color: themeStyle.pageTextSubdued,
+                                        }}
+                                      >
+                                        {t('by')}{' '}
+                                        <Text style={{ fontWeight: 'bold' }}>
+                                          {extractRepoOwner(theme.repo)}
+                                        </Text>
+                                      </TextOneLine>
+                                      <Link
+                                        variant="external"
+                                        to={normalizeGitHubRepo(theme.repo)}
+                                        onClick={e => e.stopPropagation()}
+                                      >
+                                        <Trans>Source</Trans>
+                                      </Link>
+                                    </SpaceBetween>
+                                  </Button>
+                                );
+                              })}
+                            </div>
+                          );
+                        }}
+                      />
+                    );
+                  }}
+                />
+              )}
+            </View>
           )}
-        </View>
+        </>
       )}
 
       {/* Paste CSS Input */}

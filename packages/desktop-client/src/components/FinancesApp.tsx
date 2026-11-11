@@ -24,6 +24,7 @@ import { useDispatch, useSelector } from '#redux';
 
 import { UserAccessPage } from './admin/UserAccess/UserAccessPage';
 import { UserDirectoryPage } from './admin/UserDirectory/UserDirectoryPage';
+import { BankSyncRoute } from './BankSyncRoute';
 import { BankSyncStatus } from './BankSyncStatus';
 import { CommandBar } from './CommandBar';
 import { ContextMenu } from './ContextMenu';
@@ -334,14 +335,16 @@ export function FinancesApp() {
                     <Route
                       path="/bank-sync/account/:accountId/edit"
                       element={
-                        <ErrorBoundary
-                          FallbackComponent={FeatureErrorFallback}
-                          resetKeys={[location.pathname]}
-                        >
-                          <WideNotSupported redirectTo="/settings/bank-sync">
-                            <MobileBankSyncAccountEditPage />
-                          </WideNotSupported>
-                        </ErrorBoundary>
+                        <BankSyncRoute>
+                          <ErrorBoundary
+                            FallbackComponent={FeatureErrorFallback}
+                            resetKeys={[location.pathname]}
+                          >
+                            <WideNotSupported redirectTo="/settings/bank-sync">
+                              <MobileBankSyncAccountEditPage />
+                            </WideNotSupported>
+                          </ErrorBoundary>
+                        </BankSyncRoute>
                       }
                     />
                     <Route
@@ -381,16 +384,18 @@ export function FinancesApp() {
                     <Route
                       path="/bank-sync"
                       element={
-                        <SidebarMenuRoute id="bank-sync">
-                          <ErrorBoundary
-                            FallbackComponent={FeatureErrorFallback}
-                            resetKeys={[location.pathname]}
-                          >
-                            <View style={{ flexShrink: 0, paddingTop: 10 }}>
-                              <NarrowAlternate name="BankSync" />
-                            </View>
-                          </ErrorBoundary>
-                        </SidebarMenuRoute>
+                        <BankSyncRoute>
+                          <SidebarMenuRoute id="bank-sync">
+                            <ErrorBoundary
+                              FallbackComponent={FeatureErrorFallback}
+                              resetKeys={[location.pathname]}
+                            >
+                              <View style={{ flexShrink: 0, paddingTop: 10 }}>
+                                <NarrowAlternate name="BankSync" />
+                              </View>
+                            </ErrorBoundary>
+                          </SidebarMenuRoute>
+                        </BankSyncRoute>
                       }
                     />
                     <Route
@@ -450,14 +455,16 @@ export function FinancesApp() {
                       <Route
                         path="bank-sync"
                         element={
-                          <SidebarMenuRoute id="bank-sync" isInSettings>
-                            <ErrorBoundary
-                              FallbackComponent={FeatureErrorFallback}
-                              resetKeys={[location.pathname]}
-                            >
-                              <NarrowAlternate name="BankSync" />
-                            </ErrorBoundary>
-                          </SidebarMenuRoute>
+                          <BankSyncRoute>
+                            <SidebarMenuRoute id="bank-sync" isInSettings>
+                              <ErrorBoundary
+                                FallbackComponent={FeatureErrorFallback}
+                                resetKeys={[location.pathname]}
+                              >
+                                <NarrowAlternate name="BankSync" />
+                              </ErrorBoundary>
+                            </SidebarMenuRoute>
+                          </BankSyncRoute>
                         }
                       />
                       <Route path="advanced" element={<AdvancedSettings />} />
@@ -470,15 +477,21 @@ export function FinancesApp() {
                     <Route
                       path="/gocardless/link"
                       element={
-                        <NarrowNotSupported>
-                          <WideComponent name="GoCardlessLink" />
-                        </NarrowNotSupported>
+                        <BankSyncRoute>
+                          <NarrowNotSupported>
+                            <WideComponent name="GoCardlessLink" />
+                          </NarrowNotSupported>
+                        </BankSyncRoute>
                       }
                     />
 
                     <Route
                       path="/enablebanking/auth_callback"
-                      element={<EnableBankingCallback />}
+                      element={
+                        <BankSyncRoute>
+                          <EnableBankingCallback />
+                        </BankSyncRoute>
+                      }
                     />
 
                     <Route

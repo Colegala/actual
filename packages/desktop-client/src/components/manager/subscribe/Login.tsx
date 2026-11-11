@@ -23,6 +23,7 @@ import {
   useAvailableLoginMethods,
   useLoginMethod,
 } from '#components/ServerContext';
+import { HOME_HEADER_LOGIN } from '#home-fork';
 import { useNavigate } from '#hooks/useNavigate';
 import { useDispatch } from '#redux';
 import { loggedIn } from '#users/usersSlice';
@@ -384,7 +385,7 @@ export function Login() {
 
       {method === 'header' && <HeaderLogin error={error} />}
 
-      {loginMethods?.length > 1 && (
+      {!HOME_HEADER_LOGIN && loginMethods?.length > 1 && (
         <View style={{ marginTop: 10 }}>
           <View
             style={{

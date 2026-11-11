@@ -39,6 +39,12 @@ vi.mock('#style/customThemes', async () => {
   };
 });
 
+// The home fork disables the catalog by default; these tests cover it enabled.
+vi.mock('#home-fork', async () => {
+  const actual = await vi.importActual<Record<string, unknown>>('#home-fork');
+  return { ...actual, THEME_CATALOG_ENABLED: true };
+});
+
 vi.mock('#hooks/useThemeCatalog', () => ({
   useThemeCatalog: vi.fn(),
 }));

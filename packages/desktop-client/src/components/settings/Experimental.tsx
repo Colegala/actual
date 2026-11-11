@@ -12,6 +12,7 @@ import { Permissions } from '#auth/types';
 import { Link } from '#components/common/Link';
 import { Checkbox } from '#components/forms';
 import { useLoginMethod, useMultiuserEnabled } from '#components/ServerContext';
+import { BANK_SYNC_ENABLED } from '#home-fork';
 import { useFeatureFlag } from '#hooks/useFeatureFlag';
 import { useServerPref } from '#hooks/useServerPref';
 import { useSyncedPref } from '#hooks/useSyncedPref';
@@ -273,7 +274,7 @@ export function ExperimentalFeatures() {
       >
         <Trans>Monte Carlo Analysis Report</Trans>
       </FeatureToggle>
-      {isUsingServer && (
+      {BANK_SYNC_ENABLED && isUsingServer && (
         <FeatureToggle
           flag="enableBanking"
           feedbackLink="https://github.com/actualbudget/actual/issues/7799"
@@ -281,7 +282,7 @@ export function ExperimentalFeatures() {
           <Trans>Enable Banking sync (EU banks)</Trans>
         </FeatureToggle>
       )}
-      {isUsingServer && (
+      {BANK_SYNC_ENABLED && isUsingServer && (
         <FeatureToggle
           flag="akahuBankSync"
           feedbackLink="https://github.com/actualbudget/actual/issues/8020"

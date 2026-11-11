@@ -12,6 +12,7 @@ import * as Platform from '@actual-app/core/shared/platform';
 import type { Handlers } from '@actual-app/core/types/handlers';
 import { t } from 'i18next';
 
+import { HOME_HEADER_LOGIN } from '#home-fork';
 import { useOnVisible } from '#hooks/useOnVisible';
 import { addNotification } from '#notifications/notificationsSlice';
 import { useDispatch } from '#redux';
@@ -63,6 +64,11 @@ export const useMultiuserEnabled = () => {
 
 export const useLoginMethod = () => {
   const availableLoginMethods = useContext(ServerContext).availableLoginMethods;
+
+  // Home fork: the proxy always sends the password header.
+  if (HOME_HEADER_LOGIN) {
+    return 'header';
+  }
 
   if (!availableLoginMethods || availableLoginMethods.length === 0) {
     return 'password';

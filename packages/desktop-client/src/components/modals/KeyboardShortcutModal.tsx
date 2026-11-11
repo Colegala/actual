@@ -13,6 +13,7 @@ import * as Platform from '@actual-app/core/shared/platform';
 
 import { Modal, ModalCloseButton, ModalHeader } from '#components/common/Modal';
 import { Search } from '#components/common/Search';
+import { BANK_SYNC_ENABLED } from '#home-fork';
 import { useFeatureFlag } from '#hooks/useFeatureFlag';
 
 type KeyIconProps = {
@@ -250,12 +251,16 @@ export function KeyboardShortcutModal() {
         id: 'account-page-general',
         name: t('Account page general'),
         items: [
-          {
-            id: 'bank-sync',
-            shortcut: 'B',
-            meta: ctrl,
-            description: t('Bank sync'),
-          },
+          ...(BANK_SYNC_ENABLED
+            ? [
+                {
+                  id: 'bank-sync',
+                  shortcut: 'B',
+                  meta: ctrl,
+                  description: t('Bank sync'),
+                },
+              ]
+            : []),
           {
             id: 'import-transactions',
             shortcut: 'I',

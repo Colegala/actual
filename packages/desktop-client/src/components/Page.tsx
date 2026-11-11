@@ -82,9 +82,12 @@ export function MobilePageHeader({
         }}
       >
         {leftContent}
-        <View style={{ justifyContent: 'center', padding: '0 10px' }}>
-          <HomeLink />
-        </View>
+        {/* Home fork: skip the home icon when a back button already uses the slot. */}
+        {!leftContent && (
+          <View style={{ justifyContent: 'center', padding: '0 10px' }}>
+            <HomeLink />
+          </View>
+        )}
       </View>
       <h1
         style={{

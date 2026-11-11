@@ -76,4 +76,18 @@ describe('Home button', () => {
     );
     expectHomeLink();
   });
+
+  it('is hidden in the mobile header when a back button is present', () => {
+    render(
+      <MemoryRouter>
+        <MobilePageHeader
+          title="Budget"
+          leftContent={<button type="button">Back</button>}
+        />
+      </MemoryRouter>,
+      { wrapper: TestProviders },
+    );
+    expect(screen.getByRole('button', { name: 'Back' })).toBeTruthy();
+    expect(screen.queryByRole('link', { name: 'Home' })).toBeNull();
+  });
 });

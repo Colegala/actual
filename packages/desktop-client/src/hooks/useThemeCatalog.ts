@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 
+import { THEME_CATALOG_ENABLED } from '#home-fork';
 import type { CatalogTheme } from '#style/customThemes';
 
 const CATALOG_URL = `https://raw.githubusercontent.com/actualbudget/actual/${import.meta.env.REACT_APP_BRANCH || 'master'}/packages/desktop-client/src/data/customThemeCatalog.json`;
@@ -9,10 +10,15 @@ const CATALOG_URL = `https://raw.githubusercontent.com/actualbudget/actual/${imp
  */
 export function useThemeCatalog() {
   const [data, setData] = useState<CatalogTheme[] | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(THEME_CATALOG_ENABLED);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    // Home fork: never request the catalog from GitHub.
+    if (!THEME_CATALOG_ENABLED) {
+      return;
+    }
+
     const fetchCatalog = async () => {
       setIsLoading(true);
       setError(null);
