@@ -18,6 +18,7 @@ import type { QueryClient, QueryKey } from '@tanstack/react-query';
 import { v4 as uuidv4 } from 'uuid';
 
 import { sync } from '#app/appSlice';
+import { BANK_SYNC_ENABLED } from '#home-fork';
 import { useAccounts } from '#hooks/useAccounts';
 import { addNotification } from '#notifications/notificationsSlice';
 import { payeeQueries } from '#payees';
@@ -606,6 +607,11 @@ export function useSyncAccountsMutation() {
       const {
         account: { accountsSyncing = [] },
       } = store.getState();
+
+      // Home fork: bank sync is disabled, never talk to a bank provider.
+      if (!BANK_SYNC_ENABLED) {
+        return false;
+      }
 
       // Disallow two parallel sync operations
       if (accountsSyncing.length > 0) {

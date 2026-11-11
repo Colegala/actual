@@ -268,7 +268,7 @@ function OpenIdLogin({ setError }) {
   );
 }
 
-function HeaderLogin({ error }) {
+function HeaderLogin({ error, onRetry }) {
   return (
     <View
       style={{
@@ -282,9 +282,14 @@ function HeaderLogin({ error }) {
           variant="button"
           type="button"
           style={{ fontSize: 15 }}
-          to={'/login/password?error=' + error}
+          to={HOME_HEADER_LOGIN ? '/login' : '/login/password?error=' + error}
+          onPress={HOME_HEADER_LOGIN ? onRetry : undefined}
         >
-          <Trans>Log in with password</Trans>
+          {HOME_HEADER_LOGIN ? (
+            <Trans>Retry</Trans>
+          ) : (
+            <Trans>Log in with password</Trans>
+          )}
         </Link>
       ) : (
         <span>
@@ -311,6 +316,7 @@ export function Login() {
   }
   const [searchParams, _setSearchParams] = useSearchParams();
   const [error, setError] = useState(null);
+  const [retryCount, setRetryCount] = useState(0);
   const { checked } = useBootstrapped();
   const loginMethods = useAvailableLoginMethods();
   const loginMethodRef = useRef<HTMLButtonElement>(null);
@@ -334,7 +340,13 @@ export function Login() {
         }
       })();
     }
-  }, [loginMethods, checked, searchParams, method, dispatch]);
+  }, [loginMethods, checked, searchParams, method, dispatch, retryCount]);
+
+  // Home fork: with header login there is no other method to fall back to, so
+  // an `?error=` in the URL is shown like a failed sign-in (with Retry)
+  // instead of leaving the "Checking ..." spinner up forever.
+  const shownError =
+    error ?? (HOME_HEADER_LOGIN ? searchParams.get('error') : null);
 
   function getErrorMessage(error) {
     switch (error) {
@@ -383,7 +395,12 @@ export function Login() {
 
       {method === 'openid' && <OpenIdLogin setError={setError} />}
 
-      {method === 'header' && <HeaderLogin error={error} />}
+      {method === 'header' && (
+        <HeaderLogin
+          error={shownError}
+          onRetry={() => setRetryCount(count => count + 1)}
+        />
+      )}
 
       {!HOME_HEADER_LOGIN && loginMethods?.length > 1 && (
         <View style={{ marginTop: 10 }}>
@@ -434,7 +451,7 @@ export function Login() {
         </View>
       )}
 
-      {error && (
+      {shownError && (
         <Text
           size="large"
           style={{
@@ -443,7 +460,7 @@ export function Login() {
             borderRadius: 4,
           }}
         >
-          {getErrorMessage(error)}
+          {getErrorMessage(shownError)}
         </Text>
       )}
     </View>

@@ -3,6 +3,7 @@ import { useEffect, useEffectEvent } from 'react';
 import type { AccountEntity } from '@actual-app/core/types/models';
 
 import { useSyncAndDownloadMutation } from '#accounts';
+import { BANK_SYNC_ENABLED } from '#home-fork';
 import { useAccounts } from '#hooks/useAccounts';
 import { useLocalPref } from '#hooks/useLocalPref';
 import { useSyncedPref } from '#hooks/useSyncedPref';
@@ -133,7 +134,8 @@ export function useAutomaticBankSync() {
   });
 
   useEffect(() => {
-    if (intervalMs <= 0) {
+    // Home fork: bank sync is disabled, so there is nothing to run.
+    if (!BANK_SYNC_ENABLED || intervalMs <= 0) {
       return;
     }
 

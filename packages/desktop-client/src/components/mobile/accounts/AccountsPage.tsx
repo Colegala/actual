@@ -25,7 +25,7 @@ import { View } from '@actual-app/components/view';
 import type { AccountEntity } from '@actual-app/core/types/models';
 import { css } from '@emotion/css';
 
-import { useMoveAccountMutation, useSyncAndDownloadMutation } from '#accounts';
+import { useMoveAccountMutation } from '#accounts';
 import { isAccountFailedSync } from '#accounts/syncStatus';
 import { makeAmountFullStyle } from '#components/budget/util';
 import { MOBILE_NAV_HEIGHT } from '#components/mobile/MobileNavTabs';
@@ -33,6 +33,7 @@ import { PullToRefresh } from '#components/mobile/PullToRefresh';
 import { MobilePageHeader, Page } from '#components/Page';
 import { CellValue, CellValueText } from '#components/spreadsheet/CellValue';
 import { useAccounts } from '#hooks/useAccounts';
+import { useBankSyncRefresh } from '#hooks/useBankSyncRefresh';
 import { useLocalPref } from '#hooks/useLocalPref';
 import { useNavigate } from '#hooks/useNavigate';
 import { useSyncedPref } from '#hooks/useSyncedPref';
@@ -291,7 +292,7 @@ type AllAccountListProps = {
   getClosedAccountsBalance: () => Binding<'account', 'closed-accounts-balance'>;
   onAddAccount: () => void;
   onOpenAccount: (account: AccountEntity) => void;
-  onSync: () => Promise<void>;
+  onSync?: () => void;
 };
 
 function AllAccountList({
@@ -355,7 +356,7 @@ function AllAccountList({
       {accounts.length === 0 ? (
         <EmptyMessage onAddAccount={onAddAccount} />
       ) : (
-        <PullToRefresh onRefresh={onSync}>
+        <PullToRefresh isPullable={!!onSync} onRefresh={async () => onSync?.()}>
           <View
             aria-label={t('Account list')}
             style={{ paddingBottom: MOBILE_NAV_HEIGHT }}
@@ -559,10 +560,7 @@ export function AccountsPage() {
     dispatch(replaceModal({ modal: { name: 'add-account', options: {} } }));
   }, [dispatch]);
 
-  const syncAndDownload = useSyncAndDownloadMutation();
-  const onSync = useCallback(async () => {
-    syncAndDownload.mutate({});
-  }, [syncAndDownload]);
+  const onSync = useBankSyncRefresh();
 
   // Drill-downs (e.g. report activity) land on /accounts with filter
   // conditions in the location state; show them as filtered transactions.

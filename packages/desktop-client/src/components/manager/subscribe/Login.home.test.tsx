@@ -1,7 +1,13 @@
 import { MemoryRouter } from 'react-router';
 
 import { send } from '@actual-app/core/platform/client/connection';
-import { render, renderHook, screen, waitFor } from '@testing-library/react';
+import {
+  fireEvent,
+  render,
+  renderHook,
+  screen,
+  waitFor,
+} from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { useLoginMethod } from '#components/ServerContext';
@@ -30,9 +36,9 @@ vi.mock('#home-fork', async () => {
   };
 });
 
-function renderLogin() {
+function renderLogin(entry = '/login') {
   return render(
-    <MemoryRouter>
+    <MemoryRouter initialEntries={[entry]}>
       <Login />
     </MemoryRouter>,
     { wrapper: TestProviders },
@@ -74,5 +80,42 @@ describe('Login (home fork: header login)', () => {
     flags.headerLogin = false;
     renderLogin();
     expect(document.querySelector('input[type="password"]')).not.toBeNull();
+  });
+
+  it('shows the error and Retry, not the password link, when header sign-in fails', async () => {
+    vi.mocked(send).mockResolvedValue({ error: 'invalid-header' });
+    renderLogin();
+
+    expect(
+      await screen.findAllByText('Auto login failed - No header sent'),
+    ).not.toHaveLength(0);
+    expect(screen.getByRole('button', { name: 'Retry' })).toBeDefined();
+    expect(screen.queryByText('Log in with password')).toBeNull();
+    expect(screen.queryByText(/Checking Header Token Login/)).toBeNull();
+  });
+
+  it('Retry signs in with the header method again', async () => {
+    vi.mocked(send).mockResolvedValue({ error: 'invalid-header' });
+    renderLogin();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Retry' }));
+    await waitFor(() => expect(send).toHaveBeenCalledTimes(2));
+  });
+
+  it('shows the error and Retry for /login?error=x, with no endless spinner', async () => {
+    renderLogin('/login?error=x');
+
+    expect(
+      (await screen.findAllByText('An unknown error occurred: x')).length,
+    ).toBeGreaterThan(0);
+    expect(screen.getByRole('button', { name: 'Retry' })).toBeDefined();
+    expect(screen.queryByText(/Checking Header Token Login/)).toBeNull();
+    expect(send).not.toHaveBeenCalled();
+  });
+
+  it('keeps the stock password link when the flag is off', () => {
+    flags.headerLogin = false;
+    renderLogin('/login?error=x');
+    expect(screen.queryByRole('button', { name: 'Retry' })).toBeNull();
   });
 });

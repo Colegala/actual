@@ -17,15 +17,13 @@ import type {
   TransactionEntity,
 } from '@actual-app/core/types/models';
 
-import {
-  useSyncAndDownloadMutation,
-  useUpdateAccountMutation,
-} from '#accounts';
+import { useUpdateAccountMutation } from '#accounts';
 import { markAccountRead } from '#accounts/accountsSlice';
 import * as reconciliation from '#accounts/reconciliation';
 import { ReconcilingBanner } from '#components/mobile/accounts/ReconcilingBanner';
 import { TransactionListWithBalances } from '#components/mobile/transactions/TransactionListWithBalances';
 import { useAccountPreviewTransactions } from '#hooks/useAccountPreviewTransactions';
+import { useBankSyncRefresh } from '#hooks/useBankSyncRefresh';
 import { SchedulesProvider } from '#hooks/useCachedSchedules';
 import { useDateFormat } from '#hooks/useDateFormat';
 import { useNavigate } from '#hooks/useNavigate';
@@ -156,12 +154,7 @@ function TransactionListWithPreviews({
     accountId: account?.id,
   });
 
-  const syncAndDownload = useSyncAndDownloadMutation();
-  const onRefresh = useCallback(() => {
-    if (account.id) {
-      syncAndDownload.mutate({ id: account.id });
-    }
-  }, [account.id, syncAndDownload]);
+  const onRefresh = useBankSyncRefresh(account.id);
 
   const allBalances = useMemo(
     () =>
