@@ -55,6 +55,9 @@ type MobilePageHeaderProps = {
 };
 
 const HOME_LINK_MIN_SIZE = 44;
+// Below this viewport width the budget header drops the Home icon (the month
+// selector needs the room); Home stays reachable from the budget page menu.
+const HOME_LINK_BESIDE_MENU_MIN_WIDTH = 375;
 
 // Home fork: tap target for the mobile Home icon (icon stays 20px, centered).
 // Height is always 44px. Beside other left content (budget menu button) the
@@ -77,8 +80,12 @@ export function MobilePageHeader({
   style,
   leftContent,
   rightContent,
-  showHomeLink = !leftContent,
+  showHomeLink: showHomeLinkProp = !leftContent,
 }: MobilePageHeaderProps) {
+  const { width } = useResponsive();
+  const showHomeLink =
+    showHomeLinkProp &&
+    (!leftContent || width >= HOME_LINK_BESIDE_MENU_MIN_WIDTH);
   // Home fork: with a menu button plus the Home link, the title (budget month
   // selector) can be wider than its 50% basis. Keep it at its content width and
   // let the side slots shrink, so the left slot ends where the title starts.

@@ -4,7 +4,7 @@ import { MemoryRouter } from 'react-router';
 
 import { initServer } from '@actual-app/core/platform/client/connection';
 import { render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { SpreadsheetProvider } from '#hooks/useSpreadsheet';
 import { TestProviders } from '#mocks';
@@ -18,6 +18,16 @@ vi.mock(
   '@actual-app/core/platform/client/connection',
   () => import('#mocks/connection'),
 );
+
+const responsive = vi.hoisted(() => ({ width: 1024 }));
+vi.mock('@actual-app/components/hooks/useResponsive', async () => {
+  const actual = await vi.importActual<{
+    useResponsive: () => Record<string, unknown>;
+  }>('@actual-app/components/hooks/useResponsive');
+  return {
+    useResponsive: () => ({ ...actual.useResponsive(), ...responsive }),
+  };
+});
 
 window.matchMedia = (query: string): MediaQueryList => ({
   matches: false,
@@ -37,6 +47,10 @@ function expectHomeLink() {
 }
 
 describe('Home button', () => {
+  beforeEach(() => {
+    responsive.width = 1024;
+  });
+
   it('renders in the desktop sidebar', () => {
     initServer({
       query: async () => ({ data: [], dependencies: [] }),
@@ -132,6 +146,35 @@ describe('Home button', () => {
     const link = screen.getByRole('link', { name: 'Home' });
     expect(link.style.minHeight).toBe('');
     expect(link.style.minWidth).toBe('');
+  });
+
+  it.each([
+    [374, false],
+    [375, true],
+  ])('beside the budget menu at %ipx wide: shown=%s', (width, shown) => {
+    responsive.width = width;
+    render(
+      <MemoryRouter>
+        <MobilePageHeader
+          title="Budget"
+          showHomeLink
+          leftContent={<button type="button">Budget page menu</button>}
+        />
+      </MemoryRouter>,
+      { wrapper: TestProviders },
+    );
+    expect(!!screen.queryByRole('link', { name: 'Home' })).toBe(shown);
+  });
+
+  it('stays visible below 375px when there is no left content', () => {
+    responsive.width = 320;
+    render(
+      <MemoryRouter>
+        <MobilePageHeader title="Budget" />
+      </MemoryRouter>,
+      { wrapper: TestProviders },
+    );
+    expectHomeLink();
   });
 
   it('is hidden in the mobile header when a back button is present', () => {

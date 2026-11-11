@@ -2,6 +2,7 @@ import { useTranslation } from 'react-i18next';
 
 import { MobileSheet } from '#components/mobile/MobileSheet';
 import { MobileSheetRow } from '#components/mobile/MobileSheetRow';
+import { HOME_URL } from '#home-fork';
 import { useLocalPref } from '#hooks/useLocalPref';
 import type { Modal as ModalType } from '#modals/modalsSlice';
 
@@ -22,6 +23,14 @@ export function BudgetPageMenuModal({
     <MobileSheet name="budget-page-menu" title={t('Budget')}>
       {({ close }) => (
         <>
+          {/* Home fork: always reachable here, even when the header icon is hidden. */}
+          <MobileSheetRow
+            label={t('Home')}
+            onPress={() => {
+              close();
+              window.location.assign(HOME_URL);
+            }}
+          />
           <MobileSheetRow
             label={t('Add category group')}
             onPress={onAddCategoryGroup}
