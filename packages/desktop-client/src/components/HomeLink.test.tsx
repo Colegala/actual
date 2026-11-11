@@ -1,0 +1,79 @@
+import { DndProvider } from 'react-dnd';
+import { HTML5Backend } from 'react-dnd-html5-backend';
+import { MemoryRouter } from 'react-router';
+
+import { initServer } from '@actual-app/core/platform/client/connection';
+import { render, screen } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
+
+import { SpreadsheetProvider } from '#hooks/useSpreadsheet';
+import { TestProviders } from '#mocks';
+
+import { MobilePageHeader } from './Page';
+import { SidebarFooter } from './sidebar/redesign/SidebarFooter';
+import { Sidebar } from './sidebar/Sidebar';
+import { SidebarProvider } from './sidebar/SidebarProvider';
+
+vi.mock(
+  '@actual-app/core/platform/client/connection',
+  () => import('#mocks/connection'),
+);
+
+window.matchMedia = (query: string): MediaQueryList => ({
+  matches: false,
+  media: query,
+  onchange: null,
+  addListener: vi.fn(),
+  removeListener: vi.fn(),
+  addEventListener: vi.fn(),
+  removeEventListener: vi.fn(),
+  dispatchEvent: vi.fn(() => false),
+});
+
+function expectHomeLink() {
+  const link = screen.getByRole('link', { name: 'Home' });
+  expect(link.getAttribute('href')).toBe('https://cole.local/');
+  expect(link.getAttribute('target')).toBeNull();
+}
+
+describe('Home button', () => {
+  it('renders in the desktop sidebar', () => {
+    initServer({
+      query: async () => ({ data: [], dependencies: [] }),
+      'get-cell': async () => ({ name: 'test-cell', value: 0 }),
+    });
+    render(
+      <MemoryRouter>
+        <SpreadsheetProvider>
+          <DndProvider backend={HTML5Backend}>
+            <SidebarProvider>
+              <Sidebar />
+            </SidebarProvider>
+          </DndProvider>
+        </SpreadsheetProvider>
+      </MemoryRouter>,
+      { wrapper: TestProviders },
+    );
+    expectHomeLink();
+  });
+
+  it('renders in the redesigned desktop sidebar footer', () => {
+    render(
+      <MemoryRouter>
+        <SidebarFooter />
+      </MemoryRouter>,
+      { wrapper: TestProviders },
+    );
+    expectHomeLink();
+  });
+
+  it('renders in the mobile header', () => {
+    render(
+      <MemoryRouter>
+        <MobilePageHeader title="Budget" />
+      </MemoryRouter>,
+      { wrapper: TestProviders },
+    );
+    expectHomeLink();
+  });
+});

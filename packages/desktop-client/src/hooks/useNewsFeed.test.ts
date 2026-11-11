@@ -13,6 +13,10 @@ const mockSetLastSeenNewsDate = vi.fn();
 
 let mockShowNewsFeed = true;
 
+// Home fork: the feed is forced off in production; these tests cover the
+// upstream behavior with the switch flipped on.
+vi.mock('#home-fork', () => ({ NEWS_FEED_ENABLED: true }));
+
 vi.mock('#hooks/useGlobalPref', () => ({
   useGlobalPref: (key: string) =>
     key === 'showNewsFeed'

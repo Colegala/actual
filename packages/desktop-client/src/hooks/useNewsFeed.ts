@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 
+import { NEWS_FEED_ENABLED } from '#home-fork';
 import { UNSUPPORTED_NEWS_FEED_FORMAT } from '#news/fetchNewsFeed';
 import { newsQueries } from '#news/queries';
 import type { NewsEntry } from '#news/types';
@@ -28,7 +29,8 @@ export function useNewsFeed() {
   // The setting (on by default) lets the user opt out of the feed and of the
   // request it makes to GitHub.
   const [showNewsFeed] = useGlobalPref('showNewsFeed');
-  const isEnabled = Boolean(showNewsFeed);
+  // Home fork: the news feed is forced off regardless of the pref.
+  const isEnabled = NEWS_FEED_ENABLED && Boolean(showNewsFeed);
   const [lastSeenNewsDate, setLastSeenNewsDate] =
     useGlobalPref('lastSeenNewsDate');
 

@@ -48,6 +48,9 @@ type ExternalLinkProps = {
   linkColor?: keyof typeof externalLinkColors;
   onClick?: MouseEventHandler;
   className?: string;
+  // Home fork: open in the same tab instead of a new one.
+  sameTab?: boolean;
+  'aria-label'?: string;
 };
 
 const ExternalLink = ({
@@ -56,13 +59,16 @@ const ExternalLink = ({
   linkColor = 'blue',
   onClick,
   className,
+  sameTab = false,
+  'aria-label': ariaLabel,
 }: ExternalLinkProps) => {
   return (
     // we can't use <ExternalLink /> here for obvious reasons
     <a
       href={to ?? ''}
-      target="_blank"
-      rel="noopener noreferrer"
+      target={sameTab ? undefined : '_blank'}
+      rel={sameTab ? undefined : 'noopener noreferrer'}
+      aria-label={ariaLabel}
       style={{ color: externalLinkColors[linkColor] }}
       className={className}
       onClick={onClick}

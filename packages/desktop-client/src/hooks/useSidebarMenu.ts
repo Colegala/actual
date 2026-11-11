@@ -9,6 +9,7 @@ import type {
   SidebarMenuItem,
   SidebarMenuItemId,
 } from '#components/sidebar/sidebarMenu';
+import { BANK_SYNC_ENABLED } from '#home-fork';
 import { useIsTestEnv } from '#hooks/useIsTestEnv';
 import { useSyncedPref } from '#hooks/useSyncedPref';
 import { useSyncServerStatus } from '#hooks/useSyncServerStatus';
@@ -24,7 +25,7 @@ export function useSidebarMenu() {
   const isUsingServer = syncServerStatus !== 'no-server' || isTestEnv;
 
   const isItemAvailable = (id: SidebarMenuItemId) =>
-    id !== 'bank-sync' || isUsingServer;
+    id !== 'bank-sync' || (BANK_SYNC_ENABLED && isUsingServer);
 
   const items = parseSidebarMenuItems(itemsPref);
   const availableItems = items.filter(item => isItemAvailable(item.id));

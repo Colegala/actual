@@ -2,8 +2,10 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { SvgAdd } from '@actual-app/components/icons/v1';
+import { theme } from '@actual-app/components/theme';
 import { View } from '@actual-app/components/view';
 
+import { HomeLink } from '#components/HomeLink';
 import { useGlobalPref } from '#hooks/useGlobalPref';
 import { replaceModal } from '#modals/modalsSlice';
 import { useDispatch } from '#redux';
@@ -50,6 +52,17 @@ export function Sidebar() {
         <PrimaryButtons />
 
         <Accounts />
+
+        <View
+          style={{
+            flexShrink: 0,
+            padding: '5px 14px',
+            fontSize: 13,
+            color: theme.sidebarItemText,
+          }}
+        >
+          <HomeLink showLabel />
+        </View>
 
         <SecondaryButtons
           buttons={[

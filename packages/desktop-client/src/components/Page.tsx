@@ -8,6 +8,8 @@ import { Text } from '@actual-app/components/text';
 import { theme } from '@actual-app/components/theme';
 import { View } from '@actual-app/components/view';
 
+import { HomeLink } from '#components/HomeLink';
+
 const HEADER_HEIGHT = 50;
 
 type PageHeaderProps = {
@@ -80,6 +82,9 @@ export function MobilePageHeader({
         }}
       >
         {leftContent}
+        <View style={{ justifyContent: 'center', padding: '0 10px' }}>
+          <HomeLink />
+        </View>
       </View>
       <h1
         style={{

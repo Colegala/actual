@@ -53,7 +53,6 @@ describe('SettingsNav', () => {
       '/settings/payees',
       '/settings/tags',
       '/settings/rules',
-      '/settings/bank-sync',
       '/settings/advanced',
       '/settings/experimental',
     ]);
@@ -75,7 +74,6 @@ describe('SettingsNav', () => {
       '/settings/schedules',
       '/settings/tags',
       '/settings/rules',
-      '/settings/bank-sync',
       '/settings/advanced',
       '/settings/experimental',
     ]);

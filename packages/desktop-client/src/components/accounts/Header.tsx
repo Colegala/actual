@@ -43,6 +43,7 @@ import { FiltersStack } from '#components/filters/FiltersStack';
 import type { SavedFilter } from '#components/filters/SavedFilterMenuButton';
 import { NotesButton } from '#components/NotesButton';
 import { SelectedTransactionsButton } from '#components/transactions/SelectedTransactionsButton';
+import { BANK_SYNC_ENABLED } from '#home-fork';
 import { useDateFormat } from '#hooks/useDateFormat';
 import { useFeatureFlag } from '#hooks/useFeatureFlag';
 import { useLocale } from '#hooks/useLocale';
@@ -200,10 +201,14 @@ export function AccountHeader({
   const dateFormat = useDateFormat() || 'MM/dd/yyyy';
   const locale = useLocale();
 
-  let canSync = !!(account?.account_id && isUsingServer);
+  // Home fork: bank sync is hidden.
+  let canSync = BANK_SYNC_ENABLED && !!(account?.account_id && isUsingServer);
   if (!account) {
     // All accounts - check for any syncable account
-    canSync = !!accounts.find(account => !!account.account_id) && isUsingServer;
+    canSync =
+      BANK_SYNC_ENABLED &&
+      !!accounts.find(account => !!account.account_id) &&
+      isUsingServer;
   }
 
   // Only show the ability to make linked transfers on multi-account views.
@@ -744,7 +749,7 @@ type AccountMenuProps = {
   ) => void;
 };
 
-function AccountMenu({
+export function AccountMenu({
   account,
   canSync,
   showNetWorthChart,
@@ -796,7 +801,7 @@ function AccountMenu({
             : t('Show reconciled transactions'),
         },
         { name: 'export', text: t('Export') },
-        ...(account && !account.closed
+        ...(BANK_SYNC_ENABLED && account && !account.closed
           ? canSync
             ? [
                 {

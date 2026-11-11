@@ -21,6 +21,7 @@ import { Checkbox, FormField, FormLabel } from '#components/forms';
 import { MOBILE_NAV_HEIGHT } from '#components/mobile/MobileNavTabs';
 import { MobilePageHeader, Page } from '#components/Page';
 import { useServerURL, useServerVersion } from '#components/ServerContext';
+import { NEWS_FEED_ENABLED, VERSION_CHECK_ENABLED } from '#home-fork';
 import { useFeatureFlag } from '#hooks/useFeatureFlag';
 import { useGlobalPref } from '#hooks/useGlobalPref';
 import { useMetadataPref } from '#hooks/useMetadataPref';
@@ -86,63 +87,72 @@ function About() {
           }
         />
       )}
-      <SettingsRow
-        title={t('Updates')}
-        description={
-          notifyWhenUpdateIsAvailable &&
-          (versionInfo?.isOutdated ? (
-            <Trans>New version available: {versionInfo.latestVersion}</Trans>
-          ) : (
-            <Text style={{ color: theme.noticeText, fontWeight: 600 }}>
-              <Trans>You're up to date!</Trans>
-            </Text>
-          ))
-        }
-        control={
-          <View style={{ flexDirection: 'row', gap: spacing.md }}>
-            <Link
-              variant="external"
-              to="https://actualbudget.org/docs/releases"
-              linkColor="purple"
-            >
-              <Trans>Release Notes</Trans>
-            </Link>
-            {isNewsFeedEnabled && (
-              <Link variant="internal" to="/notifications">
-                <Trans>Notifications</Trans>
-              </Link>
-            )}
-          </View>
-        }
-      />
-      <SettingsRow
-        htmlFor="settings-notifyWhenUpdateIsAvailable"
-        title={t('Update notifications')}
-        description={t('Display a notification when updates are available.')}
-        control={
-          <Checkbox
-            id="settings-notifyWhenUpdateIsAvailable"
-            checked={notifyWhenUpdateIsAvailable}
-            onChange={e =>
-              setNotifyWhenUpdateIsAvailablePref(e.currentTarget.checked)
+      {/* Home fork: no update checks, release links or news feed. */}
+      {(VERSION_CHECK_ENABLED || NEWS_FEED_ENABLED) && (
+        <>
+          <SettingsRow
+            title={t('Updates')}
+            description={
+              notifyWhenUpdateIsAvailable &&
+              (versionInfo?.isOutdated ? (
+                <Trans>
+                  New version available: {versionInfo.latestVersion}
+                </Trans>
+              ) : (
+                <Text style={{ color: theme.noticeText, fontWeight: 600 }}>
+                  <Trans>You're up to date!</Trans>
+                </Text>
+              ))
             }
-            style={{ marginRight: 0 }}
+            control={
+              <View style={{ flexDirection: 'row', gap: spacing.md }}>
+                <Link
+                  variant="external"
+                  to="https://actualbudget.org/docs/releases"
+                  linkColor="purple"
+                >
+                  <Trans>Release Notes</Trans>
+                </Link>
+                {isNewsFeedEnabled && (
+                  <Link variant="internal" to="/notifications">
+                    <Trans>Notifications</Trans>
+                  </Link>
+                )}
+              </View>
+            }
           />
-        }
-      />
-      <SettingsRow
-        htmlFor="settings-showNewsFeed"
-        title={t('In-app notifications')}
-        description={t('Show release notes and announcements in the app.')}
-        control={
-          <Checkbox
-            id="settings-showNewsFeed"
-            checked={showNewsFeed}
-            onChange={e => setShowNewsFeedPref(e.currentTarget.checked)}
-            style={{ marginRight: 0 }}
+          <SettingsRow
+            htmlFor="settings-notifyWhenUpdateIsAvailable"
+            title={t('Update notifications')}
+            description={t(
+              'Display a notification when updates are available.',
+            )}
+            control={
+              <Checkbox
+                id="settings-notifyWhenUpdateIsAvailable"
+                checked={notifyWhenUpdateIsAvailable}
+                onChange={e =>
+                  setNotifyWhenUpdateIsAvailablePref(e.currentTarget.checked)
+                }
+                style={{ marginRight: 0 }}
+              />
+            }
           />
-        }
-      />
+          <SettingsRow
+            htmlFor="settings-showNewsFeed"
+            title={t('In-app notifications')}
+            description={t('Show release notes and announcements in the app.')}
+            control={
+              <Checkbox
+                id="settings-showNewsFeed"
+                checked={showNewsFeed}
+                onChange={e => setShowNewsFeedPref(e.currentTarget.checked)}
+                style={{ marginRight: 0 }}
+              />
+            }
+          />
+        </>
+      )}
     </SettingsGroup>
   );
 }

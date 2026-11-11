@@ -1,6 +1,24 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { cmpSemanticVersion, computeClientVersion } from './versions';
+import {
+  cmpSemanticVersion,
+  computeClientVersion,
+  getLatestVersion,
+} from './versions';
+
+describe('getLatestVersion (home fork: no outbound version check)', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('never calls fetch and reports unknown', async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(getLatestVersion()).resolves.toBe('unknown');
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+});
 
 describe('cmpSemanticVersion', () => {
   it('compares major, minor and patch numerically', () => {
