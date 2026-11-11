@@ -278,19 +278,20 @@ function HeaderLogin({ error, onRetry }) {
       }}
     >
       {error ? (
-        <Link
-          variant="button"
-          type="button"
-          style={{ fontSize: 15 }}
-          to={HOME_HEADER_LOGIN ? '/login' : '/login/password?error=' + error}
-          onPress={HOME_HEADER_LOGIN ? onRetry : undefined}
-        >
-          {HOME_HEADER_LOGIN ? (
+        HOME_HEADER_LOGIN ? (
+          <Button style={{ fontSize: 15 }} onPress={onRetry}>
             <Trans>Retry</Trans>
-          ) : (
+          </Button>
+        ) : (
+          <Link
+            variant="button"
+            type="button"
+            style={{ fontSize: 15 }}
+            to={'/login/password?error=' + error}
+          >
             <Trans>Log in with password</Trans>
-          )}
-        </Link>
+          </Link>
+        )
       ) : (
         <span>
           <Trans>Checking Header Token Login ...</Trans>{' '}
@@ -314,7 +315,7 @@ export function Login() {
     setPrevDefaultLoginMethod(defaultLoginMethod);
     setMethod(defaultLoginMethod);
   }
-  const [searchParams, _setSearchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [error, setError] = useState(null);
   const [retryCount, setRetryCount] = useState(0);
   const { checked } = useBootstrapped();
@@ -398,7 +399,11 @@ export function Login() {
       {method === 'header' && (
         <HeaderLogin
           error={shownError}
-          onRetry={() => setRetryCount(count => count + 1)}
+          onRetry={() => {
+            // Clear a stale `?error=` in place (replace, no new history entry)
+            setSearchParams({}, { replace: true });
+            setRetryCount(count => count + 1);
+          }}
         />
       )}
 

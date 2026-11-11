@@ -1,4 +1,4 @@
-import { MemoryRouter } from 'react-router';
+import { MemoryRouter, useLocation, useNavigationType } from 'react-router';
 
 import { send } from '@actual-app/core/platform/client/connection';
 import {
@@ -35,6 +35,17 @@ vi.mock('#home-fork', async () => {
     },
   };
 });
+
+function HistoryProbe() {
+  const location = useLocation();
+  const type = useNavigationType();
+  return (
+    <div data-testid="history">
+      {type} {location.pathname}
+      {location.search}
+    </div>
+  );
+}
 
 function renderLogin(entry = '/login') {
   return render(
@@ -100,6 +111,24 @@ describe('Login (home fork: header login)', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: 'Retry' }));
     await waitFor(() => expect(send).toHaveBeenCalledTimes(2));
+    // let any extra effect runs settle, then assert there are exactly 2
+    await new Promise(resolve => setTimeout(resolve, 50));
+    expect(send).toHaveBeenCalledTimes(2);
+  });
+
+  it('Retry from /login?error=x replaces the history entry', async () => {
+    vi.mocked(send).mockResolvedValue({ error: 'invalid-header' });
+    render(
+      <MemoryRouter initialEntries={['/login?error=x']}>
+        <Login />
+        <HistoryProbe />
+      </MemoryRouter>,
+      { wrapper: TestProviders },
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Retry' }));
+    await waitFor(() => expect(send).toHaveBeenCalledTimes(1));
+    expect(screen.getByTestId('history').textContent).toBe('REPLACE /login');
   });
 
   it('shows the error and Retry for /login?error=x, with no endless spinner', async () => {

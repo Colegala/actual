@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { MemoryRouter, Outlet, useLocation } from 'react-router';
 
 import { render, screen, waitFor } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { TestProviders } from '#mocks';
 
@@ -11,6 +11,18 @@ import { FinancesApp } from './FinancesApp';
 // Renders the real FinancesApp route tree. Everything around the routes
 // (sidebar, titlebar, pages) is stubbed; only routing and BankSyncRoute are
 // real, with the real home-fork flags (BANK_SYNC_ENABLED = false).
+
+const responsive = vi.hoisted(() => ({ isNarrowWidth: false }));
+vi.mock('@actual-app/components/hooks/useResponsive', () => ({
+  useResponsive: () => ({
+    isNarrowWidth: responsive.isNarrowWidth,
+    isSmallWidth: responsive.isNarrowWidth,
+    isMediumWidth: false,
+    isWideWidth: !responsive.isNarrowWidth,
+    atLeastMediumWidth: !responsive.isNarrowWidth,
+    width: responsive.isNarrowWidth ? 400 : 1024,
+  }),
+}));
 
 vi.mock('#app/appSlice', async () => {
   const actual =
@@ -94,26 +106,38 @@ function renderAt(path: string) {
   );
 }
 
-describe('FinancesApp routes (home fork: bank sync gated)', () => {
-  it.each([
-    '/bank-sync',
-    '/settings/bank-sync',
-    '/bank-sync/account/a1/edit',
-    '/gocardless/link',
-    '/enablebanking/auth_callback',
-  ])('redirects %s to /budget', async path => {
-    renderAt(path);
-    await waitFor(() =>
-      expect(screen.getByTestId('pathname').textContent).toBe('/budget'),
-    );
-    expect(screen.queryByText(/page:(BankSync|GoCardlessLink)/)).toBeNull();
-    expect(screen.queryByText('page:EnableBankingCallback')).toBeNull();
-    expect(screen.queryByText('page:MobileBankSyncAccountEdit')).toBeNull();
-  });
+const BANK_SYNC_PATHS = [
+  '/bank-sync',
+  '/settings/bank-sync',
+  '/bank-sync/account/a1/edit',
+  '/gocardless/link',
+  '/enablebanking/auth_callback',
+];
 
-  it('does not redirect other routes (control)', async () => {
-    renderAt('/accounts');
-    expect(await screen.findByText('page:Accounts')).toBeDefined();
-    expect(screen.getByTestId('pathname').textContent).toBe('/accounts');
-  });
-});
+describe.each([
+  ['narrow', true],
+  ['wide', false],
+])(
+  'FinancesApp routes at %s width (home fork: bank sync gated)',
+  (_, narrow) => {
+    beforeEach(() => {
+      responsive.isNarrowWidth = narrow;
+    });
+
+    it.each(BANK_SYNC_PATHS)('redirects %s to /budget', async path => {
+      renderAt(path);
+      await waitFor(() =>
+        expect(screen.getByTestId('pathname').textContent).toBe('/budget'),
+      );
+      expect(screen.queryByText(/page:(BankSync|GoCardlessLink)/)).toBeNull();
+      expect(screen.queryByText('page:EnableBankingCallback')).toBeNull();
+      expect(screen.queryByText('page:MobileBankSyncAccountEdit')).toBeNull();
+    });
+
+    it('does not redirect other routes (control)', async () => {
+      renderAt('/accounts');
+      expect(await screen.findByText('page:Accounts')).toBeDefined();
+      expect(screen.getByTestId('pathname').textContent).toBe('/accounts');
+    });
+  },
+);
