@@ -106,7 +106,7 @@ describe('Home button', () => {
     expect(link.style.minWidth).toBe('44px');
   });
 
-  it('keeps a tall tap target beside the budget menu button without overflowing', () => {
+  it('keeps a 44px tall tap target beside the budget menu button', () => {
     render(
       <MemoryRouter>
         <MobilePageHeader
@@ -119,7 +119,7 @@ describe('Home button', () => {
     );
     const link = screen.getByRole('link', { name: 'Home' });
     expect(link.style.minHeight).toBe('44px');
-    expect(link.style.minWidth).toContain('44px');
+    expect(link.style.minWidth).toBe('0px');
   });
 
   it('leaves the desktop sidebar link unstyled', () => {

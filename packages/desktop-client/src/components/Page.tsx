@@ -54,22 +54,20 @@ type MobilePageHeaderProps = {
   showHomeLink?: boolean;
 };
 
-export const HOME_LINK_MIN_SIZE = 44;
+const HOME_LINK_MIN_SIZE = 44;
 
 // Home fork: tap target for the mobile Home icon (icon stays 20px, centered).
-// Beside other left content (budget menu button) the width is capped so the
-// target ends before the month selector at narrow screens (about 50vw - 143px:
-// 17px at 320, 37px at 360, full 44px from about 375px up, floor 20px).
+// Height is always 44px. Beside other left content (budget menu button) the
+// wrapper is allowed to shrink (see MobilePageHeader) so the target never
+// reaches into the title, and the width is 44px only when there is room.
 function homeLinkHitArea(besideLeftContent: boolean): CSSProperties {
-  const width = besideLeftContent
-    ? `max(20px, min(${HOME_LINK_MIN_SIZE}px, calc(50vw - 143px)))`
-    : `${HOME_LINK_MIN_SIZE}px`;
   return {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     boxSizing: 'border-box',
-    minWidth: width,
+    minWidth: besideLeftContent ? 0 : HOME_LINK_MIN_SIZE,
+    width: besideLeftContent ? '100%' : undefined,
     minHeight: HOME_LINK_MIN_SIZE,
   };
 }
@@ -81,6 +79,10 @@ export function MobilePageHeader({
   rightContent,
   showHomeLink = !leftContent,
 }: MobilePageHeaderProps) {
+  // Home fork: with a menu button plus the Home link, the title (budget month
+  // selector) can be wider than its 50% basis. Keep it at its content width and
+  // let the side slots shrink, so the left slot ends where the title starts.
+  const homeBesideContent = !!leftContent && showHomeLink;
   return (
     <View
       style={{
@@ -104,6 +106,8 @@ export function MobilePageHeader({
       <View
         style={{
           flexBasis: '25%',
+          flexShrink: 1,
+          minWidth: 0,
           justifyContent: 'flex-start',
           flexDirection: 'row',
         }}
@@ -117,6 +121,12 @@ export function MobilePageHeader({
               // Beside other left content, reuse that content's 10px right
               // margin so the tap target can start at its edge.
               marginLeft: leftContent ? -10 : 0,
+              ...(leftContent
+                ? {
+                    flex: `0 1 ${HOME_LINK_MIN_SIZE}px`,
+                    minWidth: 0,
+                  }
+                : null),
             }}
           >
             <HomeLink style={homeLinkHitArea(!!leftContent)} />
@@ -130,6 +140,9 @@ export function MobilePageHeader({
           justifyContent: 'center',
           flexDirection: 'row',
           flexBasis: '50%',
+          ...(homeBesideContent
+            ? { flexShrink: 0, minWidth: 'max-content' }
+            : null),
           fontSize: 17,
           fontWeight: 500,
           overflowY: 'auto',
@@ -143,6 +156,8 @@ export function MobilePageHeader({
       <View
         style={{
           flexBasis: '25%',
+          flexShrink: 1,
+          minWidth: 0,
           justifyContent: 'flex-end',
           flexDirection: 'row',
         }}
