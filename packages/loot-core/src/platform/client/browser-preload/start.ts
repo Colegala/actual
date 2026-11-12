@@ -2,7 +2,11 @@ import { initBackend as initSQLBackend } from 'absurd-sql/dist/indexeddb-main-th
 
 import { logger } from '#platform/server/log';
 
+import { FallbackSocket } from './shared-worker-fallback';
 import { WorkerBridge } from './worker-bridge';
+
+/** How long the SharedWorker path may take to send 'connect'. */
+const SHARED_WORKER_CONNECT_TIMEOUT_MS = 5000;
 
 export type StartBackendInit = {
   version: string;
@@ -29,7 +33,7 @@ export type StartBackendOptions = {
   forceDirectWorker?: boolean;
 };
 
-export type StartBackendHandle = Worker | WorkerBridge;
+export type StartBackendHandle = Worker | WorkerBridge | FallbackSocket;
 
 export function startBrowserBackend(
   opts: StartBackendOptions,
@@ -74,6 +78,29 @@ export function startBrowserBackend(
         localStorage.removeItem('SharedArrayBufferOverride');
       }
 
+      const onBeforeUnload = () => {
+        sharedPort.postMessage({ type: 'tab-closing' });
+      };
+
+      // Home fork: the constructor above only catches synchronous failures.
+      // If the SharedWorker fails to load, or never answers, switch (once)
+      // to the direct Worker path below.
+      const socket = new FallbackSocket({
+        primary: bridge,
+        createFallback: () => startDirectWorker(backendWorkerUrl, initPayload),
+        abandonPrimary: () => {
+          window.removeEventListener('beforeunload', onBeforeUnload);
+          sharedPort.postMessage({ type: 'tab-closing' });
+          bridge._terminateLocalBackendWorker();
+          sharedPort.close();
+        },
+        timeoutMs: SHARED_WORKER_CONNECT_TIMEOUT_MS,
+        onFallback: reason => {
+          logger.log(`SharedWorker failed (${reason}), falling back to Worker`);
+        },
+      });
+      sharedWorker.onerror = () => socket.fallback('error');
+
       sharedPort.postMessage({
         type: 'init',
         ...initPayload,
@@ -83,11 +110,9 @@ export function startBrowserBackend(
       });
       bridge.markInitialized();
 
-      window.addEventListener('beforeunload', () => {
-        sharedPort.postMessage({ type: 'tab-closing' });
-      });
+      window.addEventListener('beforeunload', onBeforeUnload);
 
-      return bridge;
+      return socket;
     } catch (e) {
       logger.log('SharedWorker failed, falling back to Worker:', e);
     }
@@ -96,6 +121,13 @@ export function startBrowserBackend(
   // Fallback: regular Worker (Playwright, iOS, no SharedWorker support, the
   // consumer opted out by omitting createSharedWorker, or the path above threw).
   logger.log('[WorkerBridge] No SharedWorker available, using direct Worker');
+  return startDirectWorker(backendWorkerUrl, initPayload);
+}
+
+function startDirectWorker(
+  backendWorkerUrl: URL,
+  initPayload: StartBackendInit,
+): Worker {
   const worker = new Worker(backendWorkerUrl);
   initSQLBackend(worker);
 
