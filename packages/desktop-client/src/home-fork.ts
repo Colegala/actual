@@ -25,3 +25,11 @@ export const HOME_HEADER_LOGIN = true;
  * and never requested. Built-in themes and pasted CSS still work.
  */
 export const THEME_CATALOG_ENABLED = false;
+
+/**
+ * After sign-in the app opens a budget straight away: the last-opened one,
+ * else another one on the server, else it creates "My Budget". The welcome
+ * screen and the file list only show after the user closes a file. The
+ * first-run tour offer is skipped.
+ */
+export const AUTO_OPEN_BUDGET = true;

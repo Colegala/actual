@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import { useResponsive } from '@actual-app/components/hooks/useResponsive';
 
+import { AUTO_OPEN_BUDGET } from '#home-fork';
 import { useIsTestEnv } from '#hooks/useIsTestEnv';
 import { useLocalPref } from '#hooks/useLocalPref';
 import { addNotification } from '#notifications/notificationsSlice';
@@ -20,7 +21,15 @@ export function TourAutoOffer() {
   const hasOffered = useRef(false);
 
   useEffect(() => {
-    if (hasOffered.current || introSeen || isNarrowWidth || isTestEnv) {
+    // Home fork: the budget opens straight away, with no first-run offer.
+    // The tour stays available from the help menu.
+    if (
+      AUTO_OPEN_BUDGET ||
+      hasOffered.current ||
+      introSeen ||
+      isNarrowWidth ||
+      isTestEnv
+    ) {
       return;
     }
     hasOffered.current = true;

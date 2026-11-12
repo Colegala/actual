@@ -10,6 +10,7 @@ import { View } from '@actual-app/components/view';
 import { setAppState } from '#app/appSlice';
 import { ProtectedRoute } from '#auth/ProtectedRoute';
 import { Permissions } from '#auth/types';
+import { autoOpenBudget } from '#budgetfiles/autoOpenBudget';
 import {
   BackToFileListButton,
   UserDirectoryPage,
@@ -21,10 +22,12 @@ import {
   useMultiuserEnabled,
   useServerVersion,
 } from '#components/ServerContext';
+import { AUTO_OPEN_BUDGET } from '#home-fork';
 import { useMetaThemeColor } from '#hooks/useMetaThemeColor';
 import { useDispatch, useSelector } from '#redux';
 import { loggedIn } from '#users/usersSlice';
 
+import { AutoOpenBudget } from './AutoOpenBudget';
 import { BudgetFileSelection } from './BudgetFileSelection';
 import { ConfigServer } from './ConfigServer';
 import { ServerURL } from './ServerURL';
@@ -74,8 +77,19 @@ export function ManagementApp() {
   const managerHasInitialized = useSelector(
     state => state.app.managerHasInitialized,
   );
+  const autoOpenStatus = useSelector(state => state.budgetfiles.autoOpen);
+  // Home fork: open a budget instead of showing the welcome screen or the
+  // file list, until it is done or the user closes a file.
+  const isAutoOpening = AUTO_OPEN_BUDGET && autoOpenStatus !== 'done';
+  const showAutoOpen = isAutoOpening && !!userData && !!files;
 
   const dispatch = useDispatch();
+
+  useEffect(() => {
+    if (showAutoOpen && autoOpenStatus === 'pending') {
+      void dispatch(autoOpenBudget());
+    }
+  }, [autoOpenStatus, dispatch, showAutoOpen]);
 
   // runs on mount only
   useEffect(() => {
@@ -129,7 +143,9 @@ export function ManagementApp() {
             top: 0,
           }}
         >
-          {userData && files ? (
+          {showAutoOpen ? (
+            <AutoOpenBudget />
+          ) : userData && files ? (
             <>
               <Routes>
                 <Route path="/config-server" element={<ConfigServer />} />
@@ -209,12 +225,14 @@ export function ManagementApp() {
         </View>
       )}
 
-      {managerHasInitialized && !isLoading && (
-        <Routes>
-          <Route path="/config-server" element={null} />
-          <Route path="/*" element={<ServerURL />} />
-        </Routes>
-      )}
+      {managerHasInitialized &&
+        !isLoading &&
+        (!showAutoOpen || autoOpenStatus === 'failed') && (
+          <Routes>
+            <Route path="/config-server" element={null} />
+            <Route path="/*" element={<ServerURL />} />
+          </Routes>
+        )}
       <Version />
     </View>
   );

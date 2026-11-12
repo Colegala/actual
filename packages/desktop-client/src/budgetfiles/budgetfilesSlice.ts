@@ -140,12 +140,13 @@ export const deleteBudget = createAppAsyncThunk(
 type CreateBudgetPayload = {
   testMode?: boolean;
   demoMode?: boolean;
+  budgetName?: string;
 };
 
 export const createBudget = createAppAsyncThunk(
   `${sliceName}/createBudget`,
   async (
-    { testMode = false, demoMode = false }: CreateBudgetPayload,
+    { testMode = false, demoMode = false, budgetName }: CreateBudgetPayload,
     { dispatch },
   ) => {
     dispatch(
@@ -158,7 +159,7 @@ export const createBudget = createAppAsyncThunk(
     if (demoMode) {
       await send('create-demo-budget');
     } else {
-      await send('create-budget', { testMode });
+      await send('create-budget', { testMode, budgetName });
     }
 
     dispatch(closeModal());
@@ -415,16 +416,24 @@ export const makeBackup = createAppAsyncThunk(
   },
 );
 
+/**
+ * Home fork: progress of opening a budget automatically after sign-in.
+ * 'done' also means the user closed a file, so the file list stays put.
+ */
+export type AutoOpenStatus = 'pending' | 'running' | 'failed' | 'done';
+
 type BudgetsState = {
   budgets: Budget[];
   remoteFiles: RemoteFile[] | null;
   allFiles: File[] | null;
+  autoOpen: AutoOpenStatus;
 };
 
 const initialState: BudgetsState = {
   budgets: [],
   remoteFiles: null,
   allFiles: null,
+  autoOpen: 'pending',
 };
 
 type SetBudgetsPayload = {
@@ -466,10 +475,20 @@ const budgetfilesSlice = createSlice({
         action.payload.remoteFiles,
       );
     },
+    setAutoOpenStatus(state, action: PayloadAction<AutoOpenStatus>) {
+      state.autoOpen = action.payload;
+    },
   },
   extraReducers: builder => {
     builder.addCase(signOut.fulfilled, state => {
       state.allFiles = null;
+    });
+    // Home fork: a file closed on purpose must not reopen by itself.
+    builder.addCase(closeBudget.fulfilled, state => {
+      state.autoOpen = 'done';
+    });
+    builder.addCase(closeBudgetUI.fulfilled, state => {
+      state.autoOpen = 'done';
     });
     builder.addCase(resetApp, state => state || initialState);
   },
@@ -497,7 +516,8 @@ export const actions = {
   makeBackup,
 };
 
-export const { setBudgets, setRemoteFiles, setAllFiles } = actions;
+export const { setBudgets, setRemoteFiles, setAllFiles, setAutoOpenStatus } =
+  actions;
 
 function sortFiles(arr: File[]) {
   arr.sort((x, y) => {
