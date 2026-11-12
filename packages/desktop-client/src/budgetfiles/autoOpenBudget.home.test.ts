@@ -4,14 +4,16 @@ import type { Budget } from '@actual-app/core/types/budget';
 import type { File } from '@actual-app/core/types/file';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { setAppState } from '#app/appSlice';
 import { createTestAppStore } from '#mocks';
+import { setPrefs } from '#prefs/prefsSlice';
 
 import {
   AUTO_OPEN_BUDGET_NAME,
   autoOpenBudget,
   pickBudgetToOpen,
 } from './autoOpenBudget';
-import { closeBudget } from './budgetfilesSlice';
+import { allowAutoOpen, closeBudget } from './budgetfilesSlice';
 
 // setupTests loads the store (and the real connection) before this file's
 // mocks run, so spy on `send` instead of replacing the module.
@@ -21,6 +23,8 @@ type Server = {
   budgets: Budget[];
   remote: Array<ServerFile[] | null>;
   lastOpened: string | null;
+  // Per-handler answers that replace the defaults below.
+  answers: Record<string, unknown>;
 };
 
 let server: Server;
@@ -40,6 +44,9 @@ function remoteFile(fileId: string, name = fileId): ServerFile {
 
 function mockServer() {
   vi.mocked(send).mockImplementation((async (name: string) => {
+    if (name in server.answers) {
+      return server.answers[name];
+    }
     switch (name) {
       case 'get-budgets':
         return server.budgets;
@@ -64,6 +71,13 @@ function mockServer() {
         return null;
     }
   }) as unknown as typeof connection.send);
+}
+
+/** A store after App start-up finished, so auto-open may run. */
+function newStore() {
+  const store = createTestAppStore();
+  store.dispatch(allowAutoOpen());
+  return store;
 }
 
 function sentNames() {
@@ -119,7 +133,7 @@ describe('pickBudgetToOpen (home fork)', () => {
 describe('autoOpenBudget (home fork)', () => {
   beforeEach(() => {
     vi.mocked(send).mockReset();
-    server = { budgets: [], remote: [[]], lastOpened: null };
+    server = { budgets: [], remote: [[]], lastOpened: null, answers: {} };
     mockServer();
   });
 
@@ -129,7 +143,7 @@ describe('autoOpenBudget (home fork)', () => {
       { id: 'b', name: 'B' },
     ];
     server.lastOpened = 'b';
-    const store = createTestAppStore();
+    const store = newStore();
 
     const result = await store.dispatch(autoOpenBudget()).unwrap();
 
@@ -141,7 +155,7 @@ describe('autoOpenBudget (home fork)', () => {
 
   it('downloads and opens a budget that is only on the server', async () => {
     server.remote = [[remoteFile('cloud-1', 'Shared')]];
-    const store = createTestAppStore();
+    const store = newStore();
 
     await store.dispatch(autoOpenBudget());
 
@@ -153,7 +167,7 @@ describe('autoOpenBudget (home fork)', () => {
   });
 
   it(`creates one "${AUTO_OPEN_BUDGET_NAME}" budget when the server has none`, async () => {
-    const store = createTestAppStore();
+    const store = newStore();
 
     const result = await store.dispatch(autoOpenBudget()).unwrap();
 
@@ -177,7 +191,7 @@ describe('autoOpenBudget (home fork)', () => {
 
   it('does not create a duplicate when the re-check finds a new budget', async () => {
     server.remote = [[], [remoteFile('cloud-2')]];
-    const store = createTestAppStore();
+    const store = newStore();
 
     const result = await store.dispatch(autoOpenBudget()).unwrap();
 
@@ -186,9 +200,9 @@ describe('autoOpenBudget (home fork)', () => {
     expect(sentNames()).toContain('download-budget');
   });
 
-  it('reports a failure, and creates nothing, when the file list call fails', async () => {
+  it('reports a failure, and creates nothing, when the file list fails and nothing is on this device', async () => {
     server.remote = [null];
-    const store = createTestAppStore();
+    const store = newStore();
 
     const result = await store.dispatch(autoOpenBudget()).unwrap();
 
@@ -201,7 +215,7 @@ describe('autoOpenBudget (home fork)', () => {
   it('reports a failure when the backend throws', async () => {
     vi.mocked(send).mockRejectedValue(new Error('offline'));
     vi.spyOn(console, 'error').mockImplementation(vi.fn());
-    const store = createTestAppStore();
+    const store = newStore();
 
     const result = await store.dispatch(autoOpenBudget()).unwrap();
 
@@ -211,7 +225,7 @@ describe('autoOpenBudget (home fork)', () => {
 
   it('can retry after a failure', async () => {
     server.remote = [null, []];
-    const store = createTestAppStore();
+    const store = newStore();
 
     await store.dispatch(autoOpenBudget());
     const result = await store.dispatch(autoOpenBudget()).unwrap();
@@ -220,7 +234,7 @@ describe('autoOpenBudget (home fork)', () => {
   });
 
   it('runs once even when started twice, so only one budget is created', async () => {
-    const store = createTestAppStore();
+    const store = newStore();
 
     await Promise.all([
       store.dispatch(autoOpenBudget()),
@@ -234,7 +248,7 @@ describe('autoOpenBudget (home fork)', () => {
   });
 
   it('closing a file turns auto-open off for this page load, so the file list stays reachable', async () => {
-    const store = createTestAppStore();
+    const store = newStore();
 
     await store.dispatch(closeBudget());
     vi.mocked(send).mockClear();
@@ -242,5 +256,103 @@ describe('autoOpenBudget (home fork)', () => {
 
     expect(store.getState().budgetfiles.autoOpen).toBe('done');
     expect(sentNames()).toEqual([]);
+  });
+
+  it('opens a budget on this device when the file list fails (offline use)', async () => {
+    server.remote = [null];
+    server.budgets = [{ id: 'local-1', name: 'Mine' }];
+    const store = newStore();
+
+    const result = await store.dispatch(autoOpenBudget()).unwrap();
+
+    expect(result).toBe('opened');
+    expect(send).toHaveBeenCalledWith('load-budget', { id: 'local-1' });
+    expect(store.getState().budgetfiles.autoOpen).toBe('done');
+  });
+
+  it('waits for App start-up before it runs', async () => {
+    const store = createTestAppStore();
+
+    await store.dispatch(autoOpenBudget());
+
+    expect(sentNames()).toEqual([]);
+    expect(store.getState().budgetfiles.autoOpen).toBe('waiting');
+  });
+
+  it('does not run while another load is running', async () => {
+    const store = newStore();
+    store.dispatch(setAppState({ loadingText: 'Opening last budget...' }));
+
+    await store.dispatch(autoOpenBudget());
+
+    expect(sentNames()).toEqual([]);
+  });
+
+  it('does not load a second time when a budget is already open', async () => {
+    server.budgets = [{ id: 'b', name: 'B' }];
+    const store = newStore();
+    store.dispatch(
+      setPrefs({ local: { id: 'b' }, global: {}, synced: {} } as never),
+    );
+
+    await store.dispatch(autoOpenBudget());
+
+    expect(sentNames()).not.toContain('load-budget');
+  });
+
+  it('shows Retry, not the welcome screen, when create-budget fails', async () => {
+    server.answers['create-budget'] = { error: 'internal' };
+    const store = newStore();
+
+    const result = await store.dispatch(autoOpenBudget()).unwrap();
+
+    expect(result).toBe('failed');
+    expect(store.getState().budgetfiles.autoOpen).toBe('failed');
+  });
+
+  it('shows Retry when the new budget did not reach the server; two devices creating at the same moment can still both create (no server lock)', async () => {
+    server.answers['load-prefs'] = { id: 'my-budget' };
+    server.answers['upload-budget'] = { error: { reason: 'network-failure' } };
+    const store = newStore();
+
+    const result = await store.dispatch(autoOpenBudget()).unwrap();
+
+    expect(result).toBe('failed');
+    expect(sentNames()).toContain('upload-budget');
+    expect(sentNames()).toContain('close-budget');
+    expect(store.getState().budgetfiles.autoOpen).toBe('failed');
+  });
+
+  it('treats the budget as created once its upload succeeded', async () => {
+    server.answers['load-prefs'] = { id: 'my-budget', cloudFileId: 'cloud-1' };
+    const store = newStore();
+
+    const result = await store.dispatch(autoOpenBudget()).unwrap();
+
+    expect(result).toBe('created');
+    expect(sentNames()).not.toContain('upload-budget');
+  });
+
+  it('on Retry uploads the earlier un-uploaded budget instead of creating a second one', async () => {
+    server.budgets = [{ id: 'my-budget', name: 'My Budget' }];
+    const store = newStore();
+
+    const result = await store.dispatch(autoOpenBudget()).unwrap();
+
+    expect(result).toBe('opened');
+    expect(send).toHaveBeenCalledWith('upload-budget', { id: 'my-budget' });
+    expect(send).toHaveBeenCalledWith('load-budget', { id: 'my-budget' });
+    expect(sentNames()).not.toContain('create-budget');
+  });
+
+  it('shows Retry when that upload fails again', async () => {
+    server.budgets = [{ id: 'my-budget', name: 'My Budget' }];
+    server.answers['upload-budget'] = { error: { reason: 'network-failure' } };
+    const store = newStore();
+
+    const result = await store.dispatch(autoOpenBudget()).unwrap();
+
+    expect(result).toBe('failed');
+    expect(sentNames()).not.toContain('load-budget');
   });
 });

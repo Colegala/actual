@@ -86,10 +86,12 @@ export function ManagementApp() {
   const dispatch = useDispatch();
 
   useEffect(() => {
-    if (showAutoOpen && autoOpenStatus === 'pending') {
+    // 'pending' starts only after App start-up has tried the last budget;
+    // never start while a load is running.
+    if (showAutoOpen && autoOpenStatus === 'pending' && !isLoading) {
       void dispatch(autoOpenBudget());
     }
-  }, [autoOpenStatus, dispatch, showAutoOpen]);
+  }, [autoOpenStatus, dispatch, isLoading, showAutoOpen]);
 
   // runs on mount only
   useEffect(() => {

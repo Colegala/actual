@@ -16,7 +16,11 @@ import {
 import { useQueryClient } from '@tanstack/react-query';
 
 import { setAppState, sync } from '#app/appSlice';
-import { closeBudget, loadBudget } from '#budgetfiles/budgetfilesSlice';
+import {
+  allowAutoOpen,
+  closeBudget,
+  loadBudget,
+} from '#budgetfiles/budgetfilesSlice';
 import { handleGlobalEvents } from '#global-events';
 import { useIsTestEnv } from '#hooks/useIsTestEnv';
 import { useMetadataPref } from '#hooks/useMetadataPref';
@@ -128,6 +132,9 @@ function AppInner() {
 
     async function initAll() {
       await init();
+      // Home fork: the last budget step is over, so the manager may now
+      // open a budget by itself without racing this start-up load.
+      dispatch(allowAutoOpen());
       dispatch(setAppState({ loadingText: null }));
     }
 

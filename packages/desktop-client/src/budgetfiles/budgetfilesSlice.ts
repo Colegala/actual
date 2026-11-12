@@ -140,13 +140,12 @@ export const deleteBudget = createAppAsyncThunk(
 type CreateBudgetPayload = {
   testMode?: boolean;
   demoMode?: boolean;
-  budgetName?: string;
 };
 
 export const createBudget = createAppAsyncThunk(
   `${sliceName}/createBudget`,
   async (
-    { testMode = false, demoMode = false, budgetName }: CreateBudgetPayload,
+    { testMode = false, demoMode = false }: CreateBudgetPayload,
     { dispatch },
   ) => {
     dispatch(
@@ -159,7 +158,7 @@ export const createBudget = createAppAsyncThunk(
     if (demoMode) {
       await send('create-demo-budget');
     } else {
-      await send('create-budget', { testMode, budgetName });
+      await send('create-budget', { testMode });
     }
 
     dispatch(closeModal());
@@ -418,9 +417,15 @@ export const makeBackup = createAppAsyncThunk(
 
 /**
  * Home fork: progress of opening a budget automatically after sign-in.
+ * 'waiting' lasts until App start-up (which may open the last budget) ends.
  * 'done' also means the user closed a file, so the file list stays put.
  */
-export type AutoOpenStatus = 'pending' | 'running' | 'failed' | 'done';
+export type AutoOpenStatus =
+  | 'waiting'
+  | 'pending'
+  | 'running'
+  | 'failed'
+  | 'done';
 
 type BudgetsState = {
   budgets: Budget[];
@@ -433,7 +438,7 @@ const initialState: BudgetsState = {
   budgets: [],
   remoteFiles: null,
   allFiles: null,
-  autoOpen: 'pending',
+  autoOpen: 'waiting',
 };
 
 type SetBudgetsPayload = {
@@ -446,7 +451,8 @@ type SetRemoteFilesPayload = {
 
 type SetAllFilesPayload = {
   budgets: Budget[];
-  remoteFiles: RemoteFile[];
+  // null when the server list could not be read
+  remoteFiles: RemoteFile[] | null;
 };
 
 const budgetfilesSlice = createSlice({
@@ -477,6 +483,11 @@ const budgetfilesSlice = createSlice({
     },
     setAutoOpenStatus(state, action: PayloadAction<AutoOpenStatus>) {
       state.autoOpen = action.payload;
+    },
+    allowAutoOpen(state) {
+      if (state.autoOpen === 'waiting') {
+        state.autoOpen = 'pending';
+      }
     },
   },
   extraReducers: builder => {
@@ -516,8 +527,13 @@ export const actions = {
   makeBackup,
 };
 
-export const { setBudgets, setRemoteFiles, setAllFiles, setAutoOpenStatus } =
-  actions;
+export const {
+  setBudgets,
+  setRemoteFiles,
+  setAllFiles,
+  setAutoOpenStatus,
+  allowAutoOpen,
+} = actions;
 
 function sortFiles(arr: File[]) {
   arr.sort((x, y) => {

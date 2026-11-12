@@ -10,8 +10,13 @@ import {
 } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { setAppState } from '#app/appSlice';
 import { AuthProvider } from '#auth/AuthProvider';
-import { closeBudget } from '#budgetfiles/budgetfilesSlice';
+import {
+  allowAutoOpen,
+  closeBudget,
+  loadBudget,
+} from '#budgetfiles/budgetfilesSlice';
 import { createTestAppStore, TestProviders } from '#mocks';
 
 import { ManagementApp } from './ManagementApp';
@@ -34,6 +39,8 @@ const send = vi.spyOn(connection, 'send');
 
 type Answers = {
   remoteFiles: Array<unknown[] | null>;
+  budgets?: Array<{ id: string; name: string }>;
+  lastOpened?: string | null;
   // Screen text seen when the budget is created.
   screenAtCreate?: string;
 };
@@ -45,17 +52,20 @@ function mockServer() {
       case 'subscribe-get-user':
         return { offline: false, userName: 'home', permission: 'ADMIN' };
       case 'get-budgets':
-        return [];
+        return answers.budgets ?? [];
       case 'get-remote-files':
         return answers.remoteFiles.length > 1
           ? answers.remoteFiles.shift()
           : answers.remoteFiles[0];
       case 'get-last-opened-backup':
-        return null;
+        return answers.lastOpened ?? null;
+      case 'load-budget':
+        return {};
       case 'create-budget':
         answers.screenAtCreate = document.body.textContent ?? '';
         return {};
       case 'load-prefs':
+        return answers.lastOpened ? { id: answers.lastOpened } : {};
       case 'load-global-prefs':
       case 'preferences/get':
         return {};
@@ -65,7 +75,14 @@ function mockServer() {
   }) as unknown as typeof connection.send);
 }
 
-function renderManager(store = createTestAppStore()) {
+/** A store after App start-up finished, so auto-open may run. */
+function startedStore() {
+  const store = createTestAppStore();
+  store.dispatch(allowAutoOpen());
+  return store;
+}
+
+function renderManager(store = startedStore()) {
   render(
     <TestProviders store={store}>
       <AuthProvider>
@@ -122,7 +139,7 @@ describe('ManagementApp (home fork: open the budget automatically)', () => {
   });
 
   it('shows the file manager after the user closes a file, with no auto-open loop', async () => {
-    const store = createTestAppStore();
+    const store = startedStore();
     await act(async () => {
       await store.dispatch(closeBudget());
     });
@@ -138,5 +155,28 @@ describe('ManagementApp (home fork: open the budget automatically)', () => {
 
     expect(await screen.findByText('Welcome to Actual')).toBeVisible();
     expect(sentNames()).not.toContain('create-budget');
+  });
+
+  it('sends exactly one load-budget when App start-up opens the last budget', async () => {
+    answers = { remoteFiles: [[]], budgets: [{ id: 'b', name: 'B' }] };
+    answers.lastOpened = 'b';
+    // App start-up: auto-open still waits, the last budget is loading.
+    const store = createTestAppStore();
+    store.dispatch(setAppState({ loadingText: 'Opening last budget...' }));
+    renderManager(store);
+
+    await act(async () => {
+      await store.dispatch(loadBudget({ id: 'b' }));
+      store.dispatch(allowAutoOpen());
+      store.dispatch(setAppState({ loadingText: null }));
+    });
+    // Give a wrongly started auto-open time to send its own load-budget.
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 50));
+    });
+
+    expect(sentNames().filter(name => name === 'load-budget')).toEqual([
+      'load-budget',
+    ]);
   });
 });
