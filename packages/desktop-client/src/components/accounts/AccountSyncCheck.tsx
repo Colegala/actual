@@ -14,6 +14,7 @@ import { getFailedSyncError, isAccountFailedSync } from '#accounts/syncStatus';
 import { Link } from '#components/common/Link';
 import { authorizeBank as authorizeEnableBanking } from '#enablebanking';
 import { authorizeBank as authorizeGoCardless } from '#gocardless';
+import { BANK_SYNC_ENABLED } from '#home-fork';
 import { useAccounts } from '#hooks/useAccounts';
 import { useCurrentAccess } from '#hooks/useCurrentAccess';
 import { useFailedAccounts } from '#hooks/useFailedAccounts';
@@ -151,7 +152,8 @@ export function AccountSyncCheck() {
     );
   }, [dispatch]);
 
-  if (!id) {
+  // Home fork: no bank sync, so no reauth or unlink prompt.
+  if (!id || !BANK_SYNC_ENABLED) {
     return null;
   }
 

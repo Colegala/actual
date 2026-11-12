@@ -356,6 +356,10 @@ export function useUnlinkAccountMutation() {
 
   return useMutation({
     mutationFn: async ({ id }: UnlinkAccountPayload) => {
+      // Home fork: no account is linked to a bank when bank sync is off.
+      if (!BANK_SYNC_ENABLED) {
+        return;
+      }
       await send('account-unlink', { id });
     },
     onSuccess: (_, { id }) => {

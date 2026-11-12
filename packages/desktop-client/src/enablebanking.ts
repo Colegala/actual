@@ -5,6 +5,7 @@ import type {
 } from '@actual-app/core/types/models';
 import { t } from 'i18next';
 
+import { BANK_SYNC_ENABLED } from '#home-fork';
 import { pushModal } from '#modals/modalsSlice';
 import type { AppDispatch } from '#redux/store';
 
@@ -130,6 +131,10 @@ export async function authorizeBank(
   dispatch: AppDispatch,
   upgradingAccountId?: AccountEntity['id'],
 ) {
+  // Home fork: bank sync is off, so never start a bank authorization.
+  if (!BANK_SYNC_ENABLED) {
+    return;
+  }
   _authorize(dispatch, {
     onSuccess: async data => {
       dispatch(

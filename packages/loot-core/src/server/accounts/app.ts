@@ -12,6 +12,7 @@ import {
   PostError,
   TransactionError,
 } from '#server/errors';
+import { BANK_SYNC_ENABLED } from '#server/home-fork';
 import { app as mainApp } from '#server/main-app';
 import { mutator } from '#server/mutators';
 import { del, get, post } from '#server/post';
@@ -1735,7 +1736,8 @@ async function unlinkAccount({ id }: { id: AccountEntity['id'] }) {
     bank_sync_status: null,
   });
 
-  if (isGoCardless === false) {
+  // Home fork: bank sync is off, so never ask GoCardless to forget it.
+  if (isGoCardless === false || !BANK_SYNC_ENABLED) {
     return;
   }
 

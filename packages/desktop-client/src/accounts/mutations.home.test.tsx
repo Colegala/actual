@@ -12,7 +12,7 @@ import {
   TestProviders,
 } from '#mocks';
 
-import { useSyncAccountsMutation } from './mutations';
+import { useSyncAccountsMutation, useUnlinkAccountMutation } from './mutations';
 
 // setupTests loads the app (and the real connection) before this file's mocks
 // run, so spy on `send` instead of replacing the module.
@@ -60,5 +60,13 @@ describe('useSyncAccountsMutation (home fork: bank sync gate)', () => {
       'simplefin-batch-sync',
       expect.anything(),
     );
+  });
+
+  it('sends no account-unlink request when disabled', async () => {
+    const { result } = renderHook(() => useUnlinkAccountMutation(), {
+      wrapper,
+    });
+    await result.current.mutateAsync({ id: 'a1' });
+    expect(send).not.toHaveBeenCalledWith('account-unlink', expect.anything());
   });
 });

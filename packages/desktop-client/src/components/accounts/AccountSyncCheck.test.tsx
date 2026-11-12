@@ -14,6 +14,18 @@ import { pushModal } from '#modals/modalsSlice';
 import { AccountSyncCheck } from './AccountSyncCheck';
 
 const mockDispatch = vi.fn();
+const flags = vi.hoisted(() => ({ bankSync: true }));
+
+// Stock tests run with bank sync on; the home fork turns it off.
+vi.mock('#home-fork', async () => {
+  const actual = await vi.importActual<Record<string, unknown>>('#home-fork');
+  return {
+    ...actual,
+    get BANK_SYNC_ENABLED() {
+      return flags.bankSync;
+    },
+  };
+});
 
 vi.mock('react-router', async importOriginal => ({
   ...(await importOriginal()),
@@ -53,6 +65,7 @@ describe('AccountSyncCheck', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    flags.bankSync = true;
     vi.mocked(useAccounts).mockReturnValue({
       data: [baseAccount],
       isLoading: false,
@@ -62,6 +75,21 @@ describe('AccountSyncCheck', () => {
       isFileOwner: true,
       cloudFileId: 'file-1',
     });
+  });
+
+  it('home fork: shows no reauth or unlink prompt when bank sync is disabled', () => {
+    flags.bankSync = false;
+    vi.mocked(useFailedAccounts).mockReturnValue(
+      new Map([['acc-1', { type: 'ITEM_ERROR', code: 'ITEM_LOGIN_REQUIRED' }]]),
+    );
+
+    const { container } = render(
+      <TestProviders>
+        <AccountSyncCheck />
+      </TestProviders>,
+    );
+
+    expect(container).toBeEmptyDOMElement();
   });
 
   it('renders clear error message and Configure button when GoCardless credentials are missing', async () => {

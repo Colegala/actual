@@ -4,6 +4,14 @@ import { logger } from '#platform/server/log';
 import * as Platform from '#shared/platform';
 
 import { PostError } from './errors';
+import { isBlockedBankRoute } from './home-fork';
+
+// Home fork: refuse bank sync routes before any network request.
+function assertAllowedRoute(url: unknown) {
+  if (isBlockedBankRoute(url)) {
+    throw new PostError('bank-sync-disabled');
+  }
+}
 
 export function getServerErrorReason(error) {
   return error.reason === 'unauthorized' && error.details === 'token-not-found'
@@ -48,6 +56,7 @@ export async function post(
   // cancellation so the user can interrupt the 5-minute long-poll.
   externalSignal?: AbortSignal | null,
 ) {
+  assertAllowedRoute(url);
   let text: string;
   let res: Response;
 
@@ -121,6 +130,7 @@ export async function post(
 }
 
 export async function del(url, data, headers = {}, timeout = null) {
+  assertAllowedRoute(url);
   let text;
   let res;
 
@@ -169,6 +179,7 @@ export async function del(url, data, headers = {}, timeout = null) {
 }
 
 export async function patch(url, data, headers = {}, timeout = null) {
+  assertAllowedRoute(url);
   let text;
   let res;
 
@@ -217,6 +228,7 @@ export async function patch(url, data, headers = {}, timeout = null) {
 }
 
 export async function postBinary(url, data, headers) {
+  assertAllowedRoute(url);
   let res;
   try {
     res = await fetch(url, {
@@ -244,5 +256,8 @@ export async function postBinary(url, data, headers) {
 }
 
 export function get(url, opts?) {
+  if (isBlockedBankRoute(url)) {
+    return Promise.reject(new PostError('bank-sync-disabled'));
+  }
   return fetch(url, opts).then(res => res.text());
 }

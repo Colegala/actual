@@ -8,7 +8,7 @@ const SRC = join(import.meta.dirname, '..');
 // A send()/sendCatch() call whose first argument is a bank sync handler.
 // Each of these handlers makes the backend call a bank route on the server.
 const BANK_SEND =
-  /send(?:Catch)?\(\s*'((?:gocardless|simplefin|pluggyai|akahu|enablebanking)-[a-z-]+|secret-(?:set|check)|accounts-bank-sync)'/;
+  /send(?:Catch)?\(\s*'((?:gocardless|simplefin|pluggyai|akahu|enablebanking)-[a-z-]+|secret-(?:set|check)|accounts-bank-sync|account-unlink)'/;
 
 /**
  * Every file that sends a bank sync handler, and the gate that keeps it from
@@ -17,7 +17,7 @@ const BANK_SEND =
  */
 const REVIEWED_CALLERS: Record<string, string> = {
   'accounts/mutations.ts':
-    'sync mutations check BANK_SYNC_ENABLED; link mutations run only from the blocked select-linked-accounts modal',
+    'sync and unlink mutations check BANK_SYNC_ENABLED; link mutations run only from the blocked select-linked-accounts modal',
   'components/banksync/useBuiltInBankSyncProviders.ts':
     'used only by the bank sync pages, which BankSyncRoute redirects; its status hooks are gated',
   'components/EnableBankingCallback.tsx': 'route is wrapped in BankSyncRoute',
@@ -30,8 +30,8 @@ const REVIEWED_CALLERS: Record<string, string> = {
   'components/modals/GoCardlessInitialiseModal.tsx': 'blocked modal',
   'components/modals/PluggyAiInitialiseModal.tsx': 'blocked modal',
   'components/modals/SimpleFinInitialiseModal.tsx': 'blocked modal',
-  'enablebanking.ts': 'sends only from callbacks of blocked modals',
-  'gocardless.ts': 'sends only from callbacks of blocked modals',
+  'enablebanking.ts': 'checks BANK_SYNC_ENABLED',
+  'gocardless.ts': 'checks BANK_SYNC_ENABLED',
   'hooks/useAkahuStatus.ts': 'checks BANK_SYNC_ENABLED',
   'hooks/useEnableBankingStatus.ts': 'checks BANK_SYNC_ENABLED',
   'hooks/useGoCardlessStatus.ts': 'checks BANK_SYNC_ENABLED',
