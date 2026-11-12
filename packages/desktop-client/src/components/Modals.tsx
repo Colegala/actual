@@ -12,6 +12,7 @@ import { closeModal } from '#modals/modalsSlice';
 import { useDispatch } from '#redux';
 
 import { EditSyncAccount } from './banksync/EditSyncAccount';
+import { isBlockedBankSyncModal } from './bankSyncGate';
 import { AccountAutocompleteModal } from './modals/AccountAutocompleteModal';
 import { AccountGroupsModal } from './modals/AccountGroupsModal';
 import { AccountMenuModal } from './modals/AccountMenuModal';
@@ -111,6 +112,10 @@ export function Modals() {
     .map((modal, idx) => {
       const { name } = modal;
       const key = `${name}-${idx}`;
+      // Home fork: bank sync modals call routes that nginx blocks.
+      if (isBlockedBankSyncModal(name)) {
+        return null;
+      }
       switch (name) {
         case 'goal-templates':
           return budgetId ? <GoalTemplateModal key={key} /> : null;

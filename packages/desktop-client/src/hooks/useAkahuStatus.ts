@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 
 import { send } from '@actual-app/core/platform/client/connection';
 
+import { BANK_SYNC_ENABLED } from '#home-fork';
+
 import { useSyncServerStatus } from './useSyncServerStatus';
 
 export function useAkahuStatus(enabled = true) {
@@ -10,7 +12,7 @@ export function useAkahuStatus(enabled = true) {
   const status = useSyncServerStatus();
 
   useEffect(() => {
-    if (!enabled) return;
+    if (!enabled || !BANK_SYNC_ENABLED) return;
 
     async function fetch() {
       setIsLoading(true);

@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 
 import { send } from '@actual-app/core/platform/client/connection';
 
+import { BANK_SYNC_ENABLED } from '#home-fork';
+
 import { useSyncServerStatus } from './useSyncServerStatus';
 
 export function useGoCardlessStatus() {
@@ -21,7 +23,7 @@ export function useGoCardlessStatus() {
       setIsLoading(false);
     }
 
-    if (status === 'online') {
+    if (BANK_SYNC_ENABLED && status === 'online') {
       void fetch();
     }
   }, [status]);
