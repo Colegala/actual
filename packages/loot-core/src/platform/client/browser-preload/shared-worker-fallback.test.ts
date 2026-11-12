@@ -42,7 +42,7 @@ function setup() {
       return worker;
     },
     abandonPrimary,
-    timeoutMs: 5000,
+    timeoutMs: 10_000,
   });
   const received: unknown[] = [];
   return { primary, fallbacks, abandonPrimary, socket, received };
@@ -69,11 +69,11 @@ describe('FallbackSocket (SharedWorker to direct Worker fallback)', () => {
     expect(socket.usingFallback).toBe(false);
   });
 
-  it('falls back to a direct Worker after 5 s with no connect message', () => {
+  it('falls back to a direct Worker after 10 s with no message at all', () => {
     const { primary, fallbacks, abandonPrimary, socket, received } = setup();
     socket.onmessage = e => received.push(e.data);
 
-    vi.advanceTimersByTime(4999);
+    vi.advanceTimersByTime(9999);
     expect(fallbacks).toHaveLength(0);
     vi.advanceTimersByTime(1);
 
@@ -95,7 +95,7 @@ describe('FallbackSocket (SharedWorker to direct Worker fallback)', () => {
     expect(fallbacks).toHaveLength(0);
 
     socket.start();
-    vi.advanceTimersByTime(5000);
+    vi.advanceTimersByTime(10_000);
     expect(fallbacks).toHaveLength(1);
   });
 
@@ -133,5 +133,27 @@ describe('FallbackSocket (SharedWorker to direct Worker fallback)', () => {
     socket.onmessage = e => received.push(e.data);
 
     expect(received).toEqual([{ type: 'connect' }]);
+  });
+
+  it('never falls back while a live SharedWorker is slow to start the backend', () => {
+    const { fallbacks, socket } = setup();
+    socket.onmessage = vi.fn();
+
+    // The coordinator answered (role change, heartbeat), so it is alive;
+    // backend download and wasm start-up may take as long as they need.
+    socket.markAlive();
+    vi.advanceTimersByTime(120_000);
+
+    expect(fallbacks).toHaveLength(0);
+  });
+
+  it('ignores an error once the SharedWorker is alive, so two backends never run', () => {
+    const { fallbacks, socket } = setup();
+    socket.onmessage = vi.fn();
+    socket.markAlive();
+
+    socket.fallback('error');
+
+    expect(fallbacks).toHaveLength(0);
   });
 });

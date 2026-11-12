@@ -9,16 +9,23 @@ export type FallbackSocketOptions = {
   createFallback: () => WorkerLike;
   /** Cleans up the primary path so it can never start a second backend. */
   abandonPrimary: () => void;
-  /** How long to wait for 'connect' once the app starts listening. */
+  /**
+   * How long to wait, once the app starts listening, for the first message
+   * of any kind from the SharedWorker coordinator.
+   */
   timeoutMs: number;
   onFallback?: (reason: string) => void;
 };
 
 /**
  * Presents one Worker-like socket to the connection layer. Messages go to
- * the SharedWorker path first. If that path reports an error, or sends no
- * 'connect' message within `timeoutMs` after the app starts listening, the
- * socket switches (once) to a direct Worker and drops the SharedWorker path.
+ * the SharedWorker path first. The socket switches (once) to a direct Worker
+ * only while the SharedWorker has shown no sign of life: on its error event,
+ * or when no message at all arrives within `timeoutMs` after the app starts
+ * listening. The coordinator answers a new tab at once (role change,
+ * heartbeat), so a live SharedWorker never falls back, however long the
+ * backend download and wasm start-up take. That keeps a slow but healthy
+ * tab on the coordinator, so it cannot run a second backend on a budget.
  */
 export class FallbackSocket implements WorkerLike {
   private readonly opts: FallbackSocketOptions;
@@ -27,13 +34,22 @@ export class FallbackSocket implements WorkerLike {
   private readonly listeners: Handler[] = [];
   private buffered: MessageEvent[] = [];
   private listening = false;
-  private connected = false;
+  private alive = false;
   private fellBack = false;
   private timer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(opts: FallbackSocketOptions) {
     this.opts = opts;
     this.active = opts.primary;
+  }
+
+  /** The SharedWorker sent a message, so it is running. */
+  markAlive() {
+    if (this.fellBack) {
+      return;
+    }
+    this.alive = true;
+    this.clearTimer();
   }
 
   get usingFallback() {
@@ -73,7 +89,7 @@ export class FallbackSocket implements WorkerLike {
 
   /** Switch to the direct Worker. Safe to call more than once. */
   fallback(reason: string) {
-    if (this.fellBack || this.connected) {
+    if (this.fellBack || this.alive) {
       return;
     }
     this.fellBack = true;
@@ -102,11 +118,7 @@ export class FallbackSocket implements WorkerLike {
     if (this.fellBack) {
       return;
     }
-    const data = e.data as { type?: string } | null;
-    if (data && data.type === 'connect') {
-      this.connected = true;
-      this.clearTimer();
-    }
+    this.markAlive();
     this.dispatch(e);
   }
 

@@ -5,8 +5,11 @@ import { logger } from '#platform/server/log';
 import { FallbackSocket } from './shared-worker-fallback';
 import { WorkerBridge } from './worker-bridge';
 
-/** How long the SharedWorker path may take to send 'connect'. */
-const SHARED_WORKER_CONNECT_TIMEOUT_MS = 5000;
+/**
+ * How long the SharedWorker may stay silent (no message of any kind) after
+ * the app starts listening, before this tab uses a direct Worker instead.
+ */
+const SHARED_WORKER_SILENCE_TIMEOUT_MS = 10_000;
 
 export type StartBackendInit = {
   version: string;
@@ -94,12 +97,14 @@ export function startBrowserBackend(
           bridge._terminateLocalBackendWorker();
           sharedPort.close();
         },
-        timeoutMs: SHARED_WORKER_CONNECT_TIMEOUT_MS,
+        timeoutMs: SHARED_WORKER_SILENCE_TIMEOUT_MS,
         onFallback: reason => {
           logger.log(`SharedWorker failed (${reason}), falling back to Worker`);
         },
       });
       sharedWorker.onerror = () => socket.fallback('error');
+      // Any message from the coordinator proves the SharedWorker runs.
+      sharedPort.addEventListener('message', () => socket.markAlive());
 
       sharedPort.postMessage({
         type: 'init',

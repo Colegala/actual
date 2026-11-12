@@ -73,12 +73,12 @@ describe('startBrowserBackend (home fork: SharedWorker fallback)', () => {
     expect(shared.port.close).toHaveBeenCalled();
   });
 
-  it('uses a direct Worker when the SharedWorker sends no connect within 5 s', () => {
+  it('uses a direct Worker when the SharedWorker sends nothing within 10 s', () => {
     const shared = fakeSharedWorker();
     const socket = start(shared);
     socket.onmessage = vi.fn();
 
-    vi.advanceTimersByTime(5000);
+    vi.advanceTimersByTime(10_000);
 
     expect(FakeWorker.created).toHaveLength(1);
     expect(shared.port.postMessage).toHaveBeenCalledWith({
@@ -104,6 +104,23 @@ describe('startBrowserBackend (home fork: SharedWorker fallback)', () => {
     vi.advanceTimersByTime(10_000);
 
     expect(received).toEqual([{ type: 'connect' }]);
+    expect(FakeWorker.created).toHaveLength(0);
+  });
+
+  it('keeps a slow SharedWorker once the coordinator has answered', () => {
+    const shared = fakeSharedWorker();
+    const socket = start(shared);
+    socket.onmessage = vi.fn();
+
+    // Every port listener sees the coordinator's first message.
+    for (const [, listener] of shared.port.addEventListener.mock.calls) {
+      (listener as (e: MessageEvent) => void)({
+        data: { type: '__role-change', role: 'LEADER', budgetId: '__lobby' },
+      } as MessageEvent);
+    }
+    vi.advanceTimersByTime(120_000);
+    shared.onerror?.(new Event('error'));
+
     expect(FakeWorker.created).toHaveLength(0);
   });
 });
