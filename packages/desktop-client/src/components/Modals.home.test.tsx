@@ -1,6 +1,6 @@
 import { MemoryRouter } from 'react-router';
 
-import { send } from '@actual-app/core/platform/client/connection';
+import * as connection from '@actual-app/core/platform/client/connection';
 import { act, render } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -12,11 +12,10 @@ import { Modals } from './Modals';
 
 const flags = vi.hoisted(() => ({ bankSync: false }));
 
-vi.mock('@actual-app/core/platform/client/connection', () => ({
-  send: vi.fn().mockResolvedValue({}),
-  sendCatch: vi.fn().mockResolvedValue({}),
-  listen: vi.fn(() => vi.fn()),
-}));
+// setupTests loads the app (and the real connection) before this file's
+// mocks run, so spy on the senders instead of replacing the module.
+const send = vi.spyOn(connection, 'send');
+const sendCatch = vi.spyOn(connection, 'sendCatch');
 
 vi.mock('#home-fork', async () => {
   const actual = await vi.importActual<Record<string, unknown>>('#home-fork');
@@ -49,7 +48,8 @@ function renderWithModal(name: string) {
 describe('Modals (home fork: bank sync modals are blocked)', () => {
   beforeEach(() => {
     flags.bankSync = false;
-    vi.mocked(send).mockClear();
+    send.mockReset().mockResolvedValue({} as never);
+    sendCatch.mockReset().mockResolvedValue({} as never);
   });
 
   it.each([...BANK_SYNC_MODALS])(
@@ -61,6 +61,7 @@ describe('Modals (home fork: bank sync modals are blocked)', () => {
       expect(container).toBeEmptyDOMElement();
       expect(document.querySelector('[role="dialog"]')).toBeNull();
       expect(send).not.toHaveBeenCalled();
+      expect(sendCatch).not.toHaveBeenCalled();
     },
   );
 
