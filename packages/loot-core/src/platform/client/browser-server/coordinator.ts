@@ -696,8 +696,13 @@ export function createCoordinator({
           const budgetId = (msg.args as Record<string, unknown>).id as string;
           const existingGroup = budgetGroups.get(budgetId);
 
+          // Home fork: a leader that loads its own budget again must stay
+          // the leader. Making it a follower of itself would terminate its
+          // only backend Worker and drop the request.
+          const isOwnLeader = existingGroup?.leaderPort === port;
+
           if (existingGroup && existingGroup.backendConnected) {
-            addFollower(budgetId, port);
+            if (!isOwnLeader) addFollower(budgetId, port);
             existingGroup.requestToPort.set(msg.id as string, port);
             existingGroup.requestNames.set(
               msg.id as string,
@@ -713,7 +718,7 @@ export function createCoordinator({
           }
 
           if (existingGroup && !existingGroup.backendConnected) {
-            addFollower(budgetId, port);
+            if (!isOwnLeader) addFollower(budgetId, port);
             existingGroup.requestToPort.set(msg.id as string, port);
             existingGroup.requestNames.set(
               msg.id as string,
