@@ -51,11 +51,16 @@ type LoadBudgetPayload = {
   id: string;
   // TODO: Is this still needed?
   options?: Record<string, unknown>;
+  // Home fork: skip the alert() popup on failure (auto-open shows Retry)
+  silent?: boolean;
 };
 
 export const loadBudget = createAppAsyncThunk(
   `${sliceName}/loadBudget`,
-  async ({ id, options = {} }: LoadBudgetPayload, { dispatch }) => {
+  async (
+    { id, options = {}, silent = false }: LoadBudgetPayload,
+    { dispatch },
+  ) => {
     dispatch(setAppState({ loadingText: t('Loading...') }));
 
     // Loading a budget may fail
@@ -65,6 +70,8 @@ export const loadBudget = createAppAsyncThunk(
       const message = getSyncError(error, id);
       if (error === 'out-of-sync-migrations') {
         dispatch(pushModal({ modal: { name: 'out-of-sync-migrations' } }));
+      } else if (silent) {
+        // The caller shows its own message.
       } else if (error === 'out-of-sync-data') {
         // confirm is not available on iOS
         if (typeof window.confirm !== 'undefined') {
@@ -304,12 +311,19 @@ type DownloadBudgetPayload = {
   cloudFileId: string;
   localId?: string;
   replace?: boolean;
+  // Home fork: skip the alert() popups; the caller shows its own message
+  silent?: boolean;
 };
 
 export const downloadBudget = createAppAsyncThunk(
   `${sliceName}/downloadBudget`,
   async (
-    { cloudFileId, localId, replace = false }: DownloadBudgetPayload,
+    {
+      cloudFileId,
+      localId,
+      replace = false,
+      silent = false,
+    }: DownloadBudgetPayload,
     { dispatch },
   ): Promise<string | null> => {
     dispatch(
@@ -334,7 +348,9 @@ export const downloadBudget = createAppAsyncThunk(
           ),
           cloudFileId,
           onSuccess: () => {
-            void dispatch(downloadBudget({ cloudFileId, localId, replace }));
+            void dispatch(
+              downloadBudget({ cloudFileId, localId, replace, silent }),
+            );
           },
         };
 
@@ -343,32 +359,36 @@ export const downloadBudget = createAppAsyncThunk(
         );
         dispatch(setAppState({ loadingText: null }));
       } else if (error.reason === 'file-exists') {
-        alert(
-          t(
-            'A file with id "{{id}}" already exists with the name "{{name}}". ' +
-              'This file will be replaced. This probably happened because files were manually ' +
-              'moved around outside of Actual.',
-            {
-              id:
-                error.meta &&
-                typeof error.meta === 'object' &&
-                'id' in error.meta &&
-                error.meta.id,
-              name:
-                error.meta &&
-                typeof error.meta === 'object' &&
-                'name' in error.meta &&
-                error.meta.name,
-            },
-          ),
-        );
+        if (!silent) {
+          alert(
+            t(
+              'A file with id "{{id}}" already exists with the name "{{name}}". ' +
+                'This file will be replaced. This probably happened because files were manually ' +
+                'moved around outside of Actual.',
+              {
+                id:
+                  error.meta &&
+                  typeof error.meta === 'object' &&
+                  'id' in error.meta &&
+                  error.meta.id,
+                name:
+                  error.meta &&
+                  typeof error.meta === 'object' &&
+                  'name' in error.meta &&
+                  error.meta.name,
+              },
+            ),
+          );
+        }
 
         return await dispatch(
-          downloadBudget({ cloudFileId, localId, replace: true }),
+          downloadBudget({ cloudFileId, localId, replace: true, silent }),
         ).unwrap();
       } else {
         dispatch(setAppState({ loadingText: null }));
-        alert(getDownloadError(error));
+        if (!silent) {
+          alert(getDownloadError(error));
+        }
       }
       return null;
     } else {
@@ -378,7 +398,7 @@ export const downloadBudget = createAppAsyncThunk(
       await Promise.all([
         dispatch(loadGlobalPrefs()),
         dispatch(loadAllFiles()),
-        dispatch(loadBudget({ id })),
+        dispatch(loadBudget({ id, silent })),
       ]);
       dispatch(setAppState({ loadingText: null }));
       return id;
@@ -487,6 +507,9 @@ const budgetfilesSlice = createSlice({
     setAutoOpenStatus(state, action: PayloadAction<AutoOpenStatus>) {
       state.autoOpen = action.payload;
     },
+    resetAutoOpenRetries(state) {
+      state.autoOpenRetries = 0;
+    },
     countAutoOpenRetry(state) {
       state.autoOpenRetries += 1;
     },
@@ -540,6 +563,7 @@ export const {
   setAutoOpenStatus,
   allowAutoOpen,
   countAutoOpenRetry,
+  resetAutoOpenRetries,
 } = actions;
 
 function sortFiles(arr: File[]) {

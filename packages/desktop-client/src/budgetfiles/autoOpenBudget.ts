@@ -43,9 +43,11 @@ function isBudgetOpen(state: RootState) {
 
 async function openFile(dispatch: AppDispatch, file: File) {
   if (file.state === 'remote') {
-    await dispatch(downloadBudget({ cloudFileId: file.cloudFileId }));
+    await dispatch(
+      downloadBudget({ cloudFileId: file.cloudFileId, silent: true }),
+    );
   } else {
-    await dispatch(loadBudget({ id: file.id }));
+    await dispatch(loadBudget({ id: file.id, silent: true }));
   }
 }
 

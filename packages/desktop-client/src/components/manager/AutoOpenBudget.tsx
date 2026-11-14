@@ -6,7 +6,10 @@ import { Text } from '@actual-app/components/text';
 import { View } from '@actual-app/components/view';
 
 import { autoOpenBudget } from '#budgetfiles/autoOpenBudget';
-import { countAutoOpenRetry } from '#budgetfiles/budgetfilesSlice';
+import {
+  countAutoOpenRetry,
+  resetAutoOpenRetries,
+} from '#budgetfiles/budgetfilesSlice';
 import { useDispatch, useSelector } from '#redux';
 
 // Wait before each automatic retry (ms); after the last one, Retry stays.
@@ -43,7 +46,14 @@ export function AutoOpenBudget() {
       <Text style={{ fontSize: 16 }}>
         <Trans>Could not reach the budget server.</Trans>
       </Text>
-      <Button variant="primary" onPress={() => void dispatch(autoOpenBudget())}>
+      <Button
+        variant="primary"
+        onPress={() => {
+          // A manual Retry starts a fresh automatic-retry cycle.
+          dispatch(resetAutoOpenRetries());
+          void dispatch(autoOpenBudget());
+        }}
+      >
         <Trans>Retry</Trans>
       </Button>
     </View>

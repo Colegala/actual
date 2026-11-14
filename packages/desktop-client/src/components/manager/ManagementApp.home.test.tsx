@@ -140,7 +140,7 @@ describe('ManagementApp (home fork: open the budget automatically)', () => {
 
   it('shows Retry, never the file picker, when the remote-only download fails, then retries by itself', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
-    vi.spyOn(window, 'alert').mockImplementation(vi.fn());
+    const alertSpy = vi.spyOn(window, 'alert').mockImplementation(vi.fn());
     let downloadOk = false;
     answers = {
       remoteFiles: [
@@ -176,6 +176,9 @@ describe('ManagementApp (home fork: open the budget automatically)', () => {
     expect(await screen.findByRole('button', { name: 'Retry' })).toBeVisible();
     expect(screen.queryByText(/Available for download/)).toBeNull();
     expect(screen.queryByText('Welcome to Actual')).toBeNull();
+    expect(
+      screen.getByText('Could not reach the budget server.'),
+    ).toBeVisible();
 
     downloadOk = true;
     await act(async () => {
@@ -186,6 +189,40 @@ describe('ManagementApp (home fork: open the budget automatically)', () => {
         send.mock.calls.filter(c => c[0] === 'download-budget').length,
       ).toBe(2),
     );
+    expect(alertSpy).not.toHaveBeenCalled();
+    vi.useRealTimers();
+  });
+
+  it('starts a fresh automatic-retry cycle after a manual Retry click', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    answers = { remoteFiles: [null] };
+    const store = renderManager();
+    const countDelayed = () =>
+      send.mock.calls.filter(c => c[0] === 'get-remote-files').length;
+
+    await screen.findByRole('button', { name: 'Retry' });
+    // Use up all 3 automatic retries (2 s + 5 s + 10 s).
+    for (const ms of [2500, 5500, 10500]) {
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(ms);
+      });
+    }
+    await waitFor(() =>
+      expect(store.getState().budgetfiles.autoOpenRetries).toBe(3),
+    );
+    await screen.findByRole('button', { name: 'Retry' });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    await waitFor(() =>
+      expect(store.getState().budgetfiles.autoOpenRetries).toBe(0),
+    );
+    await screen.findByRole('button', { name: 'Retry' });
+    const before = countDelayed();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2500);
+    });
+    await waitFor(() => expect(countDelayed()).toBeGreaterThan(before));
+    expect(store.getState().budgetfiles.autoOpenRetries).toBe(1);
     vi.useRealTimers();
   });
 

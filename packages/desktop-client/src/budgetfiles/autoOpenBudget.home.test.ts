@@ -13,7 +13,7 @@ import {
   autoOpenBudget,
   pickBudgetToOpen,
 } from './autoOpenBudget';
-import { allowAutoOpen, closeBudget } from './budgetfilesSlice';
+import { allowAutoOpen, closeBudget, downloadBudget } from './budgetfilesSlice';
 
 // setupTests loads the store (and the real connection) before this file's
 // mocks run, so spy on `send` instead of replacing the module.
@@ -283,6 +283,37 @@ describe('autoOpenBudget (home fork)', () => {
     expect(result).toBe('failed');
     expect(store.getState().budgetfiles.autoOpen).toBe('failed');
     expect(sentNames()).not.toContain('create-budget');
+  });
+
+  it('shows no alert() popup when auto-open fails, but still does when the user downloads by hand', async () => {
+    server.remote = [[remoteFile('cloud-1', 'Shared')]];
+    server.answers['download-budget'] = {
+      error: { reason: 'network' },
+    };
+    const alertSpy = vi.spyOn(window, 'alert').mockImplementation(vi.fn());
+    const store = newStore();
+
+    await store.dispatch(autoOpenBudget());
+    await store.dispatch(autoOpenBudget());
+    expect(alertSpy).not.toHaveBeenCalled();
+
+    await store.dispatch(downloadBudget({ cloudFileId: 'cloud-1' }));
+    expect(alertSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows no alert() popup when a local budget fails to load during auto-open', async () => {
+    server.remote = [null];
+    server.budgets = [{ id: 'local-1', name: 'Mine' }];
+    server.answers['load-budget'] = { error: 'out-of-sync-data' };
+    server.answers['load-prefs'] = {};
+    const alertSpy = vi.spyOn(window, 'alert').mockImplementation(vi.fn());
+    const confirmSpy = vi.spyOn(window, 'confirm').mockImplementation(vi.fn());
+    const store = newStore();
+
+    await store.dispatch(autoOpenBudget());
+
+    expect(alertSpy).not.toHaveBeenCalled();
+    expect(confirmSpy).not.toHaveBeenCalled();
   });
 
   it('downloads and opens the remote-only file on a later retry', async () => {
