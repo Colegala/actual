@@ -105,7 +105,10 @@ export const autoOpenBudget = createAppAsyncThunk(
       if (!isBudgetOpen(getState())) {
         await openFile(dispatch, file);
       }
-      return finish('opened');
+      // downloadBudget and loadBudget report errors with an alert and
+      // return normally (offline, 429, 5xx), so check the budget is open.
+      // If not, show Retry; never leave the user on the file picker.
+      return finish(isBudgetOpen(getState()) ? 'opened' : 'failed');
     }
 
     dispatch(setAutoOpenStatus('running'));

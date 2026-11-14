@@ -432,6 +432,8 @@ type BudgetsState = {
   remoteFiles: RemoteFile[] | null;
   allFiles: File[] | null;
   autoOpen: AutoOpenStatus;
+  // Automatic retries used after a failed auto-open (home fork)
+  autoOpenRetries: number;
 };
 
 const initialState: BudgetsState = {
@@ -439,6 +441,7 @@ const initialState: BudgetsState = {
   remoteFiles: null,
   allFiles: null,
   autoOpen: 'waiting',
+  autoOpenRetries: 0,
 };
 
 type SetBudgetsPayload = {
@@ -483,6 +486,9 @@ const budgetfilesSlice = createSlice({
     },
     setAutoOpenStatus(state, action: PayloadAction<AutoOpenStatus>) {
       state.autoOpen = action.payload;
+    },
+    countAutoOpenRetry(state) {
+      state.autoOpenRetries += 1;
     },
     allowAutoOpen(state) {
       if (state.autoOpen === 'waiting') {
@@ -533,6 +539,7 @@ export const {
   setAllFiles,
   setAutoOpenStatus,
   allowAutoOpen,
+  countAutoOpenRetry,
 } = actions;
 
 function sortFiles(arr: File[]) {

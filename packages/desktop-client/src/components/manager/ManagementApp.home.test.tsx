@@ -138,6 +138,57 @@ describe('ManagementApp (home fork: open the budget automatically)', () => {
     await waitFor(() => expect(sentNames()).toContain('create-budget'));
   });
 
+  it('shows Retry, never the file picker, when the remote-only download fails, then retries by itself', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.spyOn(window, 'alert').mockImplementation(vi.fn());
+    let downloadOk = false;
+    answers = {
+      remoteFiles: [
+        [
+          {
+            deleted: false,
+            fileId: 'cloud-1',
+            groupId: 'g',
+            name: 'My Budget',
+            encryptKeyId: '',
+            hasKey: true,
+            owner: '',
+            usersWithAccess: [],
+          },
+        ],
+      ],
+    };
+    const base = send.getMockImplementation()!;
+    send.mockImplementation((async (name: string, ...rest: unknown[]) => {
+      if (name === 'download-budget') {
+        return downloadOk
+          ? { id: 'downloaded-id' }
+          : { error: { reason: 'network' } };
+      }
+      if (name === 'load-prefs' && downloadOk) {
+        return { id: 'downloaded-id' };
+      }
+      return (base as (...a: unknown[]) => unknown)(name, ...rest);
+    }) as unknown as typeof connection.send);
+
+    renderManager();
+
+    expect(await screen.findByRole('button', { name: 'Retry' })).toBeVisible();
+    expect(screen.queryByText(/Available for download/)).toBeNull();
+    expect(screen.queryByText('Welcome to Actual')).toBeNull();
+
+    downloadOk = true;
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2500);
+    });
+    await waitFor(() =>
+      expect(
+        send.mock.calls.filter(c => c[0] === 'download-budget').length,
+      ).toBe(2),
+    );
+    vi.useRealTimers();
+  });
+
   it('shows the file manager after the user closes a file, with no auto-open loop', async () => {
     const store = startedStore();
     await act(async () => {

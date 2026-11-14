@@ -270,6 +270,66 @@ describe('autoOpenBudget (home fork)', () => {
     expect(store.getState().budgetfiles.autoOpen).toBe('done');
   });
 
+  it('reports a failure, not done, when the remote-only download fails (429/5xx)', async () => {
+    server.remote = [[remoteFile('cloud-1', 'Shared')]];
+    server.answers['download-budget'] = {
+      error: { reason: 'network' },
+    };
+    vi.spyOn(window, 'alert').mockImplementation(vi.fn());
+    const store = newStore();
+
+    const result = await store.dispatch(autoOpenBudget()).unwrap();
+
+    expect(result).toBe('failed');
+    expect(store.getState().budgetfiles.autoOpen).toBe('failed');
+    expect(sentNames()).not.toContain('create-budget');
+  });
+
+  it('downloads and opens the remote-only file on a later retry', async () => {
+    server.remote = [[remoteFile('cloud-1', 'Shared')]];
+    server.answers['download-budget'] = {
+      error: { reason: 'network' },
+    };
+    vi.spyOn(window, 'alert').mockImplementation(vi.fn());
+    const store = newStore();
+    await store.dispatch(autoOpenBudget());
+
+    delete server.answers['download-budget'];
+    const result = await store.dispatch(autoOpenBudget()).unwrap();
+
+    expect(result).toBe('opened');
+    expect(store.getState().budgetfiles.autoOpen).toBe('done');
+  });
+
+  it('reports a failure when the local budget cannot be loaded', async () => {
+    server.remote = [null];
+    server.budgets = [{ id: 'local-1', name: 'Mine' }];
+    server.answers['load-budget'] = { error: 'out-of-sync-data' };
+    server.answers['load-prefs'] = {};
+    vi.spyOn(window, 'alert').mockImplementation(vi.fn());
+    const store = newStore();
+
+    const result = await store.dispatch(autoOpenBudget()).unwrap();
+
+    expect(result).toBe('failed');
+  });
+
+  it('never creates a budget when the file list throws', async () => {
+    send.mockImplementation((async (name: string) => {
+      if (name === 'get-remote-files') {
+        throw new Error('HTTP 429');
+      }
+      return name === 'get-budgets' ? [] : null;
+    }) as unknown as typeof connection.send);
+    vi.spyOn(console, 'error').mockImplementation(vi.fn());
+    const store = newStore();
+
+    const result = await store.dispatch(autoOpenBudget()).unwrap();
+
+    expect(result).toBe('failed');
+    expect(sentNames()).not.toContain('create-budget');
+  });
+
   it('waits for App start-up before it runs', async () => {
     const store = createTestAppStore();
 
