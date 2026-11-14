@@ -72,6 +72,8 @@ export const loadBudget = createAppAsyncThunk(
         dispatch(pushModal({ modal: { name: 'out-of-sync-migrations' } }));
       } else if (silent) {
         // The caller shows its own message; tell it what went wrong.
+        // load-budget only reports local errors (it never syncs), so none
+        // of these is a network failure.
         dispatch(
           setAutoOpenError({
             kind: error === 'out-of-sync-data' ? 'newer-app' : 'other',
@@ -360,6 +362,8 @@ export const downloadBudget = createAppAsyncThunk(
           },
         };
 
+        // The modal asks the user, so auto-open ends in 'needs-user' (it
+        // checks for this modal), not by autoOpenError.
         dispatch(
           pushModal({ modal: { name: 'fix-encryption-key', options: opts } }),
         );
@@ -401,9 +405,9 @@ export const downloadBudget = createAppAsyncThunk(
         if (silent) {
           dispatch(
             setAutoOpenError({
-              kind: NETWORK_DOWNLOAD_REASONS.includes(error.reason)
-                ? 'network'
-                : 'other',
+              kind: TERMINAL_DOWNLOAD_REASONS.includes(error.reason)
+                ? 'other'
+                : 'network',
             }),
           );
         } else {
@@ -475,7 +479,24 @@ export type AutoOpenStatus =
 export type AutoOpenErrorKind = 'network' | 'newer-app' | 'other';
 export type AutoOpenError = { kind: AutoOpenErrorKind; budgetId?: string };
 
-const NETWORK_DOWNLOAD_REASONS = ['network', 'download-failure'];
+// Download failures that retrying cannot fix (loot-core: cloud-storage.ts,
+// budgetfiles/app.ts, sync/index.ts). Every other reason is treated as a
+// network or server problem and retried: 'network', 'network-failure',
+// 'download-failure', 'internal' (HTTP 429/5xx), or the raw response text
+// of a rejected request (post.ts), which can be any string.
+const TERMINAL_DOWNLOAD_REASONS = [
+  'decrypt-failure',
+  'mismatched-cloud-file',
+  'file-exists',
+  'not-zip-file',
+  'invalid-zip-file',
+  'invalid-meta-file',
+  'zip-too-large',
+  'invalid-schema',
+  'clock-drift',
+  'out-of-sync',
+  'old-key-style',
+];
 
 type BudgetsState = {
   budgets: Budget[];

@@ -316,12 +316,36 @@ describe('autoOpenBudget (home fork)', () => {
   });
 
   it('ends in a terminal error for download errors that are not network errors', async () => {
-    for (const reason of ['mismatched-cloud-file', 'invalid-zip-file']) {
+    for (const reason of [
+      'mismatched-cloud-file',
+      'invalid-zip-file',
+      'invalid-meta-file',
+      'invalid-schema',
+    ]) {
       server.remote = [[remoteFile('cloud-1', 'Shared')]];
       server.answers['download-budget'] = { error: { reason } };
       const store = newStore();
       const result = await store.dispatch(autoOpenBudget()).unwrap();
       expect(result).toBe('error');
+    }
+  });
+
+  it('treats every other download failure as a network problem to retry', async () => {
+    for (const reason of [
+      'internal',
+      'network-failure',
+      'download-failure',
+      'network',
+      'Too many requests, please try again later.',
+      '<html><body>502 Bad Gateway</body></html>',
+      'some-unknown-reason',
+    ]) {
+      server.remote = [[remoteFile('cloud-1', 'Shared')]];
+      server.answers['download-budget'] = { error: { reason } };
+      const store = newStore();
+      const result = await store.dispatch(autoOpenBudget()).unwrap();
+      expect(result, reason).toBe('failed');
+      expect(store.getState().budgetfiles.autoOpen).toBe('failed');
     }
   });
 

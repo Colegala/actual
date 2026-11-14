@@ -367,6 +367,35 @@ describe('ManagementApp (home fork: open the budget automatically)', () => {
     },
   );
 
+  it.each([
+    'internal',
+    'network-failure',
+    'Too many requests, please try again later.',
+    '<html><body>502 Bad Gateway</body></html>',
+    'some-unknown-reason',
+  ])(
+    'download failure %s: three automatic retries, then Retry stays',
+    async reason => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      vi.spyOn(window, 'alert').mockImplementation(vi.fn());
+      answers = { remoteFiles: [[remoteBudget]] };
+      overrideSend(name =>
+        name === 'download-budget' ? { error: { reason } } : undefined,
+      );
+      renderManager();
+
+      await screen.findByRole('button', { name: 'Retry' });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(60000);
+      });
+
+      expect(count('download-budget')).toBe(4);
+      expect(
+        screen.getByText('Could not reach the budget server.'),
+      ).toBeVisible();
+    },
+  );
+
   it('a modal that renders nothing without a budget does not block auto-open', async () => {
     answers = { remoteFiles: [null], budgets: [{ id: 'l1', name: 'Mine' }] };
     const store = startedStore();
