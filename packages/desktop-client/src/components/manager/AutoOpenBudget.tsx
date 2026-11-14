@@ -24,10 +24,15 @@ export function AutoOpenBudget() {
   const dispatch = useDispatch();
   const status = useSelector(state => state.budgetfiles.autoOpen);
 
+  const modalOpen = useSelector(state => state.modals.modalStack.length > 0);
   const retries = useSelector(state => state.budgetfiles.autoOpenRetries);
 
   useEffect(() => {
-    if (status !== 'failed' || retries >= AUTO_RETRY_DELAYS_MS.length) {
+    if (
+      status !== 'failed' ||
+      modalOpen ||
+      retries >= AUTO_RETRY_DELAYS_MS.length
+    ) {
       return;
     }
     const timer = setTimeout(() => {
@@ -35,16 +40,20 @@ export function AutoOpenBudget() {
       void dispatch(autoOpenBudget());
     }, AUTO_RETRY_DELAYS_MS[retries]);
     return () => clearTimeout(timer);
-  }, [dispatch, retries, status]);
+  }, [dispatch, modalOpen, retries, status]);
 
-  if (status !== 'failed') {
+  if (status !== 'failed' && status !== 'needs-user') {
     return null;
   }
 
   return (
     <View style={{ alignItems: 'center', gap: 15, textAlign: 'center' }}>
       <Text style={{ fontSize: 16 }}>
-        <Trans>Could not reach the budget server.</Trans>
+        {status === 'needs-user' ? (
+          <Trans>The budget needs your attention to open.</Trans>
+        ) : (
+          <Trans>Could not reach the budget server.</Trans>
+        )}
       </Text>
       <Button
         variant="primary"

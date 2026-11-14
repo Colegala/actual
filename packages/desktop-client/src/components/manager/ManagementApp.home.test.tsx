@@ -8,7 +8,7 @@ import {
   screen,
   waitFor,
 } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { setAppState } from '#app/appSlice';
 import { AuthProvider } from '#auth/AuthProvider';
@@ -100,6 +100,10 @@ function sentNames() {
 }
 
 describe('ManagementApp (home fork: open the budget automatically)', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   beforeEach(() => {
     flags.autoOpen = true;
     answers = { remoteFiles: [[]] };
@@ -190,7 +194,6 @@ describe('ManagementApp (home fork: open the budget automatically)', () => {
       ).toBe(2),
     );
     expect(alertSpy).not.toHaveBeenCalled();
-    vi.useRealTimers();
   });
 
   it('starts a fresh automatic-retry cycle after a manual Retry click', async () => {
@@ -223,7 +226,85 @@ describe('ManagementApp (home fork: open the budget automatically)', () => {
     });
     await waitFor(() => expect(countDelayed()).toBeGreaterThan(before));
     expect(store.getState().budgetfiles.autoOpenRetries).toBe(1);
-    vi.useRealTimers();
+  });
+
+  const remoteBudget = {
+    deleted: false,
+    fileId: 'cloud-1',
+    groupId: 'g',
+    name: 'My Budget',
+    encryptKeyId: '',
+    hasKey: true,
+    owner: '',
+    usersWithAccess: [],
+  };
+
+  function overrideSend(handler: (name: string) => unknown | undefined): void {
+    const base = send.getMockImplementation()! as (...a: unknown[]) => unknown;
+    send.mockImplementation((async (name: string, ...rest: unknown[]) => {
+      const answer = handler(name);
+      return answer !== undefined ? answer : base(name, ...rest);
+    }) as unknown as typeof connection.send);
+  }
+
+  const count = (name: string) =>
+    send.mock.calls.filter(c => c[0] === name).length;
+
+  it('stops the automatic retries after the third one', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    answers = { remoteFiles: [null] };
+    renderManager();
+    await screen.findByRole('button', { name: 'Retry' });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(20000);
+    });
+    const after = count('get-remote-files');
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(60000);
+    });
+
+    expect(count('get-remote-files')).toBe(after);
+    expect(screen.getByRole('button', { name: 'Retry' })).toBeVisible();
+  });
+
+  it('opens one encryption-key modal and does not retry by itself', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    answers = { remoteFiles: [[remoteBudget]] };
+    overrideSend(name =>
+      name === 'download-budget'
+        ? { error: { reason: 'decrypt-failure', meta: {} } }
+        : undefined,
+    );
+    const store = renderManager();
+
+    await waitFor(() => expect(count('download-budget')).toBe(1));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(20000);
+    });
+
+    expect(count('download-budget')).toBe(1);
+    expect(store.getState().modals.modalStack).toHaveLength(1);
+    expect(store.getState().modals.isHidden).toBe(false);
+    expect(store.getState().budgetfiles.autoOpen).toBe('needs-user');
+  });
+
+  it('opens one migrations modal and does not retry by itself', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    answers = { remoteFiles: [null], budgets: [{ id: 'l1', name: 'Mine' }] };
+    overrideSend(name =>
+      name === 'load-budget' ? { error: 'out-of-sync-migrations' } : undefined,
+    );
+    const store = renderManager();
+
+    await waitFor(() => expect(count('load-budget')).toBe(1));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(20000);
+    });
+
+    expect(count('load-budget')).toBe(1);
+    expect(store.getState().modals.modalStack).toHaveLength(1);
+    expect(store.getState().budgetfiles.autoOpen).toBe('needs-user');
   });
 
   it('shows the file manager after the user closes a file, with no auto-open loop', async () => {

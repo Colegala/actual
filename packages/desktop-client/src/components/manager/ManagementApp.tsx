@@ -77,6 +77,7 @@ export function ManagementApp() {
   const managerHasInitialized = useSelector(
     state => state.app.managerHasInitialized,
   );
+  const modalOpen = useSelector(state => state.modals.modalStack.length > 0);
   const autoOpenStatus = useSelector(state => state.budgetfiles.autoOpen);
   // Home fork: open a budget instead of showing the welcome screen or the
   // file list, until it is done or the user closes a file.
@@ -88,10 +89,15 @@ export function ManagementApp() {
   useEffect(() => {
     // 'pending' starts only after App start-up has tried the last budget;
     // never start while a load is running.
-    if (showAutoOpen && autoOpenStatus === 'pending' && !isLoading) {
+    if (
+      showAutoOpen &&
+      autoOpenStatus === 'pending' &&
+      !isLoading &&
+      !modalOpen
+    ) {
       void dispatch(autoOpenBudget());
     }
-  }, [autoOpenStatus, dispatch, isLoading, showAutoOpen]);
+  }, [autoOpenStatus, dispatch, isLoading, modalOpen, showAutoOpen]);
 
   // runs on mount only
   useEffect(() => {
@@ -229,7 +235,9 @@ export function ManagementApp() {
 
       {managerHasInitialized &&
         !isLoading &&
-        (!showAutoOpen || autoOpenStatus === 'failed') && (
+        (!showAutoOpen ||
+          autoOpenStatus === 'failed' ||
+          autoOpenStatus === 'needs-user') && (
           <Routes>
             <Route path="/config-server" element={null} />
             <Route path="/*" element={<ServerURL />} />

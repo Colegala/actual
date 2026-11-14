@@ -62,6 +62,17 @@ convict.addFormat({
   },
 });
 
+// Accepts a number or a string and never throws, so a bad value cannot stop
+// the server from starting; resolveRateLimitMax warns and uses the default.
+convict.addFormat({
+  name: 'rateLimitMax',
+  validate: () => undefined,
+  coerce: value =>
+    typeof value === 'string' || typeof value === 'number'
+      ? String(value)
+      : 'invalid',
+});
+
 convict.addFormat({
   name: 'ipNetworks',
   validate(values) {
@@ -169,8 +180,7 @@ const configSchema = convict({
   },
   rateLimitMax: {
     doc: 'Global request limit per client per 60 seconds (whole number, 1 or more). Invalid values use the default.',
-    // String, so a bad value is handled with a warning, not a start-up error.
-    format: String,
+    format: 'rateLimitMax',
     default: String(RATE_LIMIT_DEFAULT_MAX),
     env: 'ACTUAL_RATE_LIMIT_MAX',
   },

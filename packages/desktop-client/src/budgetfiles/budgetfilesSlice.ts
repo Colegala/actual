@@ -359,30 +359,35 @@ export const downloadBudget = createAppAsyncThunk(
         );
         dispatch(setAppState({ loadingText: null }));
       } else if (error.reason === 'file-exists') {
-        if (!silent) {
-          alert(
-            t(
-              'A file with id "{{id}}" already exists with the name "{{name}}". ' +
-                'This file will be replaced. This probably happened because files were manually ' +
-                'moved around outside of Actual.',
-              {
-                id:
-                  error.meta &&
-                  typeof error.meta === 'object' &&
-                  'id' in error.meta &&
-                  error.meta.id,
-                name:
-                  error.meta &&
-                  typeof error.meta === 'object' &&
-                  'name' in error.meta &&
-                  error.meta.name,
-              },
-            ),
-          );
+        if (silent) {
+          // Replacing a file needs the user's OK (the alert below), so a
+          // silent caller fails here and shows its own message.
+          dispatch(setAppState({ loadingText: null }));
+          return null;
         }
 
+        alert(
+          t(
+            'A file with id "{{id}}" already exists with the name "{{name}}". ' +
+              'This file will be replaced. This probably happened because files were manually ' +
+              'moved around outside of Actual.',
+            {
+              id:
+                error.meta &&
+                typeof error.meta === 'object' &&
+                'id' in error.meta &&
+                error.meta.id,
+              name:
+                error.meta &&
+                typeof error.meta === 'object' &&
+                'name' in error.meta &&
+                error.meta.name,
+            },
+          ),
+        );
+
         return await dispatch(
-          downloadBudget({ cloudFileId, localId, replace: true, silent }),
+          downloadBudget({ cloudFileId, localId, replace: true }),
         ).unwrap();
       } else {
         dispatch(setAppState({ loadingText: null }));
@@ -445,6 +450,8 @@ export type AutoOpenStatus =
   | 'pending'
   | 'running'
   | 'failed'
+  // a modal (encryption key, migrations) waits for the user: no auto-retry
+  | 'needs-user'
   | 'done';
 
 type BudgetsState = {

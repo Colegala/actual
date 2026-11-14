@@ -301,6 +301,21 @@ describe('autoOpenBudget (home fork)', () => {
     expect(alertSpy).toHaveBeenCalledTimes(1);
   });
 
+  it('does not replace a file or alert when the download says file-exists', async () => {
+    server.remote = [[remoteFile('cloud-1', 'Shared')]];
+    server.answers['download-budget'] = {
+      error: { reason: 'file-exists', meta: { id: 'x', name: 'y' } },
+    };
+    const alertSpy = vi.spyOn(window, 'alert').mockImplementation(vi.fn());
+    const store = newStore();
+
+    const result = await store.dispatch(autoOpenBudget()).unwrap();
+
+    expect(result).toBe('failed');
+    expect(alertSpy).not.toHaveBeenCalled();
+    expect(sentNames().filter(n => n === 'download-budget')).toHaveLength(1);
+  });
+
   it('shows no alert() popup when a local budget fails to load during auto-open', async () => {
     server.remote = [null];
     server.budgets = [{ id: 'local-1', name: 'Mine' }];

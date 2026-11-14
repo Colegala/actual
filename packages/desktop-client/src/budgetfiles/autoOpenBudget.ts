@@ -18,7 +18,7 @@ import {
 /** Name of the budget the home fork creates when the server has none. */
 export const AUTO_OPEN_BUDGET_NAME = 'My Budget';
 
-export type AutoOpenResult = 'opened' | 'created' | 'failed';
+export type AutoOpenResult = 'opened' | 'created' | 'failed' | 'needs-user';
 
 /**
  * Picks the budget to open. The server file list has no modified time, so
@@ -98,7 +98,11 @@ export const autoOpenBudget = createAppAsyncThunk(
 
     function finish(result: AutoOpenResult): AutoOpenResult {
       dispatch(setAppState({ loadingText: null }));
-      dispatch(setAutoOpenStatus(result === 'failed' ? 'failed' : 'done'));
+      dispatch(
+        setAutoOpenStatus(
+          result === 'failed' || result === 'needs-user' ? result : 'done',
+        ),
+      );
       return result;
     }
 
@@ -110,7 +114,14 @@ export const autoOpenBudget = createAppAsyncThunk(
       // downloadBudget and loadBudget report errors with an alert and
       // return normally (offline, 429, 5xx), so check the budget is open.
       // If not, show Retry; never leave the user on the file picker.
-      return finish(isBudgetOpen(getState()) ? 'opened' : 'failed');
+      if (isBudgetOpen(getState())) {
+        return finish('opened');
+      }
+      // A modal that asks the user (encryption key, migrations) is open:
+      // do not retry by itself, it would stack and hide that modal.
+      return finish(
+        getState().modals.modalStack.length > 0 ? 'needs-user' : 'failed',
+      );
     }
 
     dispatch(setAutoOpenStatus('running'));
@@ -168,7 +179,9 @@ export const autoOpenBudget = createAppAsyncThunk(
       const state = getState();
       const status = state.budgetfiles.autoOpen;
       return (
-        (status === 'pending' || status === 'failed') &&
+        (status === 'pending' ||
+          status === 'failed' ||
+          status === 'needs-user') &&
         state.app.loadingText === null &&
         !isBudgetOpen(state)
       );
