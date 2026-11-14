@@ -12,13 +12,19 @@ import {
   loadAllFiles,
   loadBudget,
   setAllFiles,
+  setAutoOpenError,
   setAutoOpenStatus,
 } from './budgetfilesSlice';
 
 /** Name of the budget the home fork creates when the server has none. */
 export const AUTO_OPEN_BUDGET_NAME = 'My Budget';
 
-export type AutoOpenResult = 'opened' | 'created' | 'failed' | 'needs-user';
+export type AutoOpenResult =
+  | 'opened'
+  | 'created'
+  | 'failed'
+  | 'needs-user'
+  | 'error';
 
 /**
  * Picks the budget to open. The server file list has no modified time, so
@@ -35,6 +41,20 @@ export function pickBudgetToOpen(
     ? onDevice.find(file => file.id === lastBudgetId)
     : undefined;
   return last ?? onDevice[0] ?? openable[0] ?? null;
+}
+
+// Modals the open flow pushes that ask the user to act. Others (for
+// example ones that render nothing without a budget) must not block it.
+const USER_ACTION_MODALS = [
+  'fix-encryption-key',
+  'out-of-sync-migrations',
+  'load-backup',
+];
+
+export function hasUserActionModal(state: RootState) {
+  return state.modals.modalStack.some(modal =>
+    USER_ACTION_MODALS.includes(modal.name),
+  );
 }
 
 function isBudgetOpen(state: RootState) {
@@ -100,7 +120,9 @@ export const autoOpenBudget = createAppAsyncThunk(
       dispatch(setAppState({ loadingText: null }));
       dispatch(
         setAutoOpenStatus(
-          result === 'failed' || result === 'needs-user' ? result : 'done',
+          result === 'failed' || result === 'needs-user' || result === 'error'
+            ? result
+            : 'done',
         ),
       );
       return result;
@@ -119,11 +141,18 @@ export const autoOpenBudget = createAppAsyncThunk(
       }
       // A modal that asks the user (encryption key, migrations) is open:
       // do not retry by itself, it would stack and hide that modal.
-      return finish(
-        getState().modals.modalStack.length > 0 ? 'needs-user' : 'failed',
-      );
+      if (hasUserActionModal(getState())) {
+        return finish('needs-user');
+      }
+      // Only a network or server problem is worth an automatic retry.
+      const kind = getState().budgetfiles.autoOpenError?.kind;
+      if (kind === 'newer-app') {
+        return finish('needs-user');
+      }
+      return finish(kind === 'other' ? 'error' : 'failed');
     }
 
+    dispatch(setAutoOpenError(null));
     dispatch(setAutoOpenStatus('running'));
     dispatch(setAppState({ loadingText: t('Opening budget...') }));
 
@@ -181,7 +210,8 @@ export const autoOpenBudget = createAppAsyncThunk(
       return (
         (status === 'pending' ||
           status === 'failed' ||
-          status === 'needs-user') &&
+          status === 'needs-user' ||
+          status === 'error') &&
         state.app.loadingText === null &&
         !isBudgetOpen(state)
       );

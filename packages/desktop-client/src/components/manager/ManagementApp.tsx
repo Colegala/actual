@@ -10,7 +10,10 @@ import { View } from '@actual-app/components/view';
 import { setAppState } from '#app/appSlice';
 import { ProtectedRoute } from '#auth/ProtectedRoute';
 import { Permissions } from '#auth/types';
-import { autoOpenBudget } from '#budgetfiles/autoOpenBudget';
+import {
+  autoOpenBudget,
+  hasUserActionModal,
+} from '#budgetfiles/autoOpenBudget';
 import {
   BackToFileListButton,
   UserDirectoryPage,
@@ -77,7 +80,7 @@ export function ManagementApp() {
   const managerHasInitialized = useSelector(
     state => state.app.managerHasInitialized,
   );
-  const modalOpen = useSelector(state => state.modals.modalStack.length > 0);
+  const modalOpen = useSelector(hasUserActionModal);
   const autoOpenStatus = useSelector(state => state.budgetfiles.autoOpen);
   // Home fork: open a budget instead of showing the welcome screen or the
   // file list, until it is done or the user closes a file.
@@ -237,7 +240,8 @@ export function ManagementApp() {
         !isLoading &&
         (!showAutoOpen ||
           autoOpenStatus === 'failed' ||
-          autoOpenStatus === 'needs-user') && (
+          autoOpenStatus === 'needs-user' ||
+          autoOpenStatus === 'error') && (
           <Routes>
             <Route path="/config-server" element={null} />
             <Route path="/*" element={<ServerURL />} />

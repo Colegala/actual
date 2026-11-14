@@ -71,7 +71,13 @@ export const loadBudget = createAppAsyncThunk(
       if (error === 'out-of-sync-migrations') {
         dispatch(pushModal({ modal: { name: 'out-of-sync-migrations' } }));
       } else if (silent) {
-        // The caller shows its own message.
+        // The caller shows its own message; tell it what went wrong.
+        dispatch(
+          setAutoOpenError({
+            kind: error === 'out-of-sync-data' ? 'newer-app' : 'other',
+            budgetId: id,
+          }),
+        );
       } else if (error === 'out-of-sync-data') {
         // confirm is not available on iOS
         if (typeof window.confirm !== 'undefined') {
@@ -362,6 +368,7 @@ export const downloadBudget = createAppAsyncThunk(
         if (silent) {
           // Replacing a file needs the user's OK (the alert below), so a
           // silent caller fails here and shows its own message.
+          dispatch(setAutoOpenError({ kind: 'other' }));
           dispatch(setAppState({ loadingText: null }));
           return null;
         }
@@ -391,7 +398,15 @@ export const downloadBudget = createAppAsyncThunk(
         ).unwrap();
       } else {
         dispatch(setAppState({ loadingText: null }));
-        if (!silent) {
+        if (silent) {
+          dispatch(
+            setAutoOpenError({
+              kind: NETWORK_DOWNLOAD_REASONS.includes(error.reason)
+                ? 'network'
+                : 'other',
+            }),
+          );
+        } else {
           alert(getDownloadError(error));
         }
       }
@@ -452,7 +467,15 @@ export type AutoOpenStatus =
   | 'failed'
   // a modal (encryption key, migrations) waits for the user: no auto-retry
   | 'needs-user'
+  // not a network problem and retrying cannot help: Retry or file list
+  | 'error'
   | 'done';
+
+/** Why a silent open failed. Only 'network' is worth retrying by itself. */
+export type AutoOpenErrorKind = 'network' | 'newer-app' | 'other';
+export type AutoOpenError = { kind: AutoOpenErrorKind; budgetId?: string };
+
+const NETWORK_DOWNLOAD_REASONS = ['network', 'download-failure'];
 
 type BudgetsState = {
   budgets: Budget[];
@@ -461,6 +484,8 @@ type BudgetsState = {
   autoOpen: AutoOpenStatus;
   // Automatic retries used after a failed auto-open (home fork)
   autoOpenRetries: number;
+  // Last silent open failure (home fork)
+  autoOpenError: AutoOpenError | null;
 };
 
 const initialState: BudgetsState = {
@@ -469,6 +494,7 @@ const initialState: BudgetsState = {
   allFiles: null,
   autoOpen: 'waiting',
   autoOpenRetries: 0,
+  autoOpenError: null,
 };
 
 type SetBudgetsPayload = {
@@ -513,6 +539,9 @@ const budgetfilesSlice = createSlice({
     },
     setAutoOpenStatus(state, action: PayloadAction<AutoOpenStatus>) {
       state.autoOpen = action.payload;
+    },
+    setAutoOpenError(state, action: PayloadAction<AutoOpenError | null>) {
+      state.autoOpenError = action.payload;
     },
     resetAutoOpenRetries(state) {
       state.autoOpenRetries = 0;
@@ -571,6 +600,7 @@ export const {
   allowAutoOpen,
   countAutoOpenRetry,
   resetAutoOpenRetries,
+  setAutoOpenError,
 } = actions;
 
 function sortFiles(arr: File[]) {

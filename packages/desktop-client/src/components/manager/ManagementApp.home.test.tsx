@@ -18,6 +18,7 @@ import {
   loadBudget,
 } from '#budgetfiles/budgetfilesSlice';
 import { createTestAppStore, TestProviders } from '#mocks';
+import { pushModal } from '#modals/modalsSlice';
 
 import { ManagementApp } from './ManagementApp';
 
@@ -266,6 +267,113 @@ describe('ManagementApp (home fork: open the budget automatically)', () => {
 
     expect(count('get-remote-files')).toBe(after);
     expect(screen.getByRole('button', { name: 'Retry' })).toBeVisible();
+    expect(
+      screen.getByRole('button', { name: 'Show budget files' }),
+    ).toBeVisible();
+  });
+
+  it('shows no file-list escape while the automatic retries still run', async () => {
+    answers = { remoteFiles: [null] };
+    renderManager();
+    await screen.findByRole('button', { name: 'Retry' });
+    expect(
+      screen.queryByRole('button', { name: 'Show budget files' }),
+    ).toBeNull();
+  });
+
+  it('out-of-sync-data: explains, offers Reload and Load a backup, never retries', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    answers = { remoteFiles: [null], budgets: [{ id: 'l1', name: 'Mine' }] };
+    overrideSend(name =>
+      name === 'load-budget' ? { error: 'out-of-sync-data' } : undefined,
+    );
+    const reload = vi.fn();
+    const original = window.location;
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      value: { ...original, reload },
+    });
+    const store = renderManager();
+
+    try {
+      expect(
+        await screen.findByText(
+          'This budget needs a newer version of the app.',
+        ),
+      ).toBeVisible();
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(60000);
+      });
+      expect(count('load-budget')).toBe(1);
+      expect(store.getState().budgetfiles.autoOpen).toBe('needs-user');
+
+      fireEvent.click(screen.getByRole('button', { name: 'Reload app' }));
+      expect(reload).toHaveBeenCalledTimes(1);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Load a backup' }));
+      const stack = store.getState().modals.modalStack;
+      expect(stack).toHaveLength(1);
+      expect(stack[0]).toMatchObject({
+        name: 'load-backup',
+        options: { budgetId: 'l1' },
+      });
+    } finally {
+      Object.defineProperty(window, 'location', {
+        configurable: true,
+        value: original,
+      });
+    }
+  });
+
+  it.each([
+    ['budget-not-found', 'load-budget', 'load'],
+    ['mismatched-cloud-file', 'download-budget', 'download'],
+  ])(
+    '%s: terminal error, no retries, Show budget files opens the picker',
+    async (reason, call, kind) => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      vi.spyOn(window, 'alert').mockImplementation(vi.fn());
+      answers =
+        kind === 'load'
+          ? { remoteFiles: [null], budgets: [{ id: 'l1', name: 'Mine' }] }
+          : { remoteFiles: [[remoteBudget]] };
+      overrideSend(name =>
+        name === call
+          ? kind === 'load'
+            ? { error: reason }
+            : { error: { reason } }
+          : undefined,
+      );
+      const store = renderManager();
+
+      expect(
+        await screen.findByText('The budget could not be opened.'),
+      ).toBeVisible();
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(60000);
+      });
+      expect(count(call)).toBe(1);
+      expect(store.getState().budgetfiles.autoOpen).toBe('error');
+
+      fireEvent.click(
+        screen.getByRole('button', { name: 'Show budget files' }),
+      );
+      await waitFor(() =>
+        expect(
+          screen.queryByText('The budget could not be opened.'),
+        ).toBeNull(),
+      );
+      expect(store.getState().budgetfiles.autoOpen).toBe('done');
+    },
+  );
+
+  it('a modal that renders nothing without a budget does not block auto-open', async () => {
+    answers = { remoteFiles: [null], budgets: [{ id: 'l1', name: 'Mine' }] };
+    const store = startedStore();
+    store.dispatch(pushModal({ modal: { name: 'goal-templates' } as never }));
+    renderManager(store);
+
+    await waitFor(() => expect(count('load-budget')).toBe(1));
   });
 
   it('opens one encryption-key modal and does not retry by itself', async () => {

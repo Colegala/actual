@@ -68,9 +68,9 @@ convict.addFormat({
   name: 'rateLimitMax',
   validate: () => undefined,
   coerce: value =>
-    typeof value === 'string' || typeof value === 'number'
-      ? String(value)
-      : 'invalid',
+    // convict calls coerce only for strings (env, or a string in config.json);
+    // other types stay as they are and resolveRateLimitMax warns on them.
+    String(value),
 });
 
 convict.addFormat({

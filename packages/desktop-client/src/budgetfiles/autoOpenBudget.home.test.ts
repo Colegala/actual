@@ -301,6 +301,30 @@ describe('autoOpenBudget (home fork)', () => {
     expect(alertSpy).toHaveBeenCalledTimes(1);
   });
 
+  it('ends in a terminal error, not a retry, for a non-network load error', async () => {
+    server.remote = [null];
+    server.budgets = [{ id: 'local-1', name: 'Mine' }];
+    server.answers['load-budget'] = { error: 'budget-not-found' };
+    server.answers['load-prefs'] = {};
+    vi.spyOn(window, 'alert').mockImplementation(vi.fn());
+    const store = newStore();
+
+    const result = await store.dispatch(autoOpenBudget()).unwrap();
+
+    expect(result).toBe('error');
+    expect(store.getState().budgetfiles.autoOpen).toBe('error');
+  });
+
+  it('ends in a terminal error for download errors that are not network errors', async () => {
+    for (const reason of ['mismatched-cloud-file', 'invalid-zip-file']) {
+      server.remote = [[remoteFile('cloud-1', 'Shared')]];
+      server.answers['download-budget'] = { error: { reason } };
+      const store = newStore();
+      const result = await store.dispatch(autoOpenBudget()).unwrap();
+      expect(result).toBe('error');
+    }
+  });
+
   it('does not replace a file or alert when the download says file-exists', async () => {
     server.remote = [[remoteFile('cloud-1', 'Shared')]];
     server.answers['download-budget'] = {
@@ -311,7 +335,7 @@ describe('autoOpenBudget (home fork)', () => {
 
     const result = await store.dispatch(autoOpenBudget()).unwrap();
 
-    expect(result).toBe('failed');
+    expect(result).toBe('error');
     expect(alertSpy).not.toHaveBeenCalled();
     expect(sentNames().filter(n => n === 'download-budget')).toHaveLength(1);
   });
@@ -347,7 +371,7 @@ describe('autoOpenBudget (home fork)', () => {
     expect(store.getState().budgetfiles.autoOpen).toBe('done');
   });
 
-  it('reports a failure when the local budget cannot be loaded', async () => {
+  it('needs the user (newer app) when the local budget is out of sync', async () => {
     server.remote = [null];
     server.budgets = [{ id: 'local-1', name: 'Mine' }];
     server.answers['load-budget'] = { error: 'out-of-sync-data' };
@@ -357,7 +381,7 @@ describe('autoOpenBudget (home fork)', () => {
 
     const result = await store.dispatch(autoOpenBudget()).unwrap();
 
-    expect(result).toBe('failed');
+    expect(result).toBe('needs-user');
   });
 
   it('never creates a budget when the file list throws', async () => {
