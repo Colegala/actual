@@ -5,7 +5,6 @@ import { fileURLToPath } from 'node:url';
 import cors from 'cors';
 import createDebug from 'debug';
 import express from 'express';
-import rateLimit from 'express-rate-limit';
 
 import { bootstrap } from './account-db';
 import * as accountApp from './app-account';
@@ -20,6 +19,7 @@ import * as secretApp from './app-secrets';
 import * as simpleFinApp from './app-simplefin/app-simplefin';
 import * as syncApp from './app-sync';
 import { config } from './load-config';
+import { createGlobalRateLimiter, resolveRateLimitMax } from './rate-limit';
 
 const debugSensitive = createDebug('actual-sensitive:server');
 
@@ -35,12 +35,7 @@ app.use(cors());
 app.set('trust proxy', config.get('trustedProxies'));
 if (process.env.NODE_ENV !== 'development') {
   app.use(
-    rateLimit({
-      windowMs: 60 * 1000,
-      max: 500,
-      legacyHeaders: false,
-      standardHeaders: true,
-    }),
+    createGlobalRateLimiter(resolveRateLimitMax(config.get('rateLimitMax'))),
   );
 }
 

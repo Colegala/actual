@@ -7,6 +7,7 @@ import convict from 'convict';
 import createDebug from 'debug';
 
 import { applyFileEnv } from './config-file-env';
+import { RATE_LIMIT_DEFAULT_MAX } from './home-fork';
 import { parseAllowedNetwork } from './util/ssrf';
 
 const require = createRequire(import.meta.url);
@@ -165,6 +166,13 @@ const configSchema = convict({
       '::1/128',
     ],
     env: 'ACTUAL_TRUSTED_PROXIES',
+  },
+  rateLimitMax: {
+    doc: 'Global request limit per client per 60 seconds (whole number, 1 or more). Invalid values use the default.',
+    // String, so a bad value is handled with a warning, not a start-up error.
+    format: String,
+    default: String(RATE_LIMIT_DEFAULT_MAX),
+    env: 'ACTUAL_RATE_LIMIT_MAX',
   },
   trustedAuthProxies: {
     doc: 'List of trusted auth proxies.',
